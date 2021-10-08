@@ -1,9 +1,11 @@
-import numpy as np
-from scipy.sparse import coo_matrix
 from typing import Tuple
-import numpy.typing as npt
 
-from mesh import Mesh, Face
+import numpy as np
+import numpy.typing as npt
+from scipy.sparse import coo_matrix
+
+from mesh import Face, Mesh
+
 
 def asm_system(m: Mesh):
 

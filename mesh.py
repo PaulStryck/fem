@@ -1,4 +1,5 @@
 from typing import List, Tuple
+
 import gmsh
 
 Coord = Tuple[float, float]
