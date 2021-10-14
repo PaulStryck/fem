@@ -9,17 +9,20 @@ Face  = Tuple[Coord, Coord, Coord]
 class Mesh:
     _vertices: List[Coord]
     _faces: List[Tuple[int, int, int]]
-    _boundaries: set
+    _d_boundaries: list
+    _n_boundaries: list
 
     def __init__(
         self,
         vertices: List[Tuple[float, float]],
         faces: List[Tuple[int, int, int]],
-        boundaries: set
+        d_boundaries: list,
+        n_boundaries: list
     ):
         self._vertices = vertices
         self._faces = faces
-        self._boundaries = boundaries
+        self._d_boundaries = d_boundaries
+        self._n_boundaries = n_boundaries
 
     @property
     def faces(self) -> List[Tuple[int, int, int]]:
@@ -31,8 +34,12 @@ class Mesh:
         return self._vertices
 
     @property
-    def boundaries(self) -> set:
-        return self._boundaries
+    def d_boundaries(self) -> list:
+        return self._d_boundaries
+
+    @property
+    def n_boundaries(self) -> list:
+        return self._n_boundaries
 
 
     def __iter__(self):
@@ -65,7 +72,8 @@ def unit_square(n: int = 100):
     h = 1 / (n-1)
     vertices: List[Coord]             = []
     faces: List[Tuple[int, int, int]] = []
-    boundaries: set                   = set()
+    d_boundaries: list                  = []
+    n_boundaries: list                  = []
 
 
     # Build vertex list
@@ -81,13 +89,19 @@ def unit_square(n: int = 100):
             faces.append((i*n + j + 1, (i+1)*n + j + 1, (i+1)*n + j))
 
     for i in range(n):
-        boundaries.add(i)  # 0, 1, 2
-        boundaries.add(i + (n-1)*n)  # 6, 7, 8
-        boundaries.add(i*n)  # 0, 3, 6
-        boundaries.add(i*n+n-1)  # 2, 5, 8
+        d_boundaries.append(i*n)  # left edge w\ lower w upper endpoint
+
+    for i in range(1,n):
+        d_boundaries.append(i)  # bottom edge w\o left w right end point
+
+    for i in range(1, n):
+        n_boundaries.append(i + (n-1)*n)  # upper edge w\o left, w\ right end points
+
+    for i in range(1, n-1):
+        n_boundaries.append(i*n+n-1)  # right edge w\o lower w\o upper end points
 
 
-    return Mesh(vertices, faces, boundaries)
+    return Mesh(vertices, faces, d_boundaries, n_boundaries)
 
 
 def import_gmsh(file: str):
@@ -182,7 +196,8 @@ def import_gmsh(file: str):
     renumbering = dict()
     vertices = []
     faces = []
-    boundaries = set()
+    d_boundaries = []
+    n_boundaries = []
 
     for t in triangles:
         _t = (nodeNumbering[t[1]], nodeNumbering[t[2]],nodeNumbering[t[3]])
@@ -195,7 +210,7 @@ def import_gmsh(file: str):
         faces.append((renumbering[_t[0]], renumbering[_t[1]], renumbering[_t[2]]))
 
     for e in edges:
-        boundaries.add(renumbering[nodeNumbering[e[1]]])
-        boundaries.add(renumbering[nodeNumbering[e[2]]])
+        d_boundaries.append(renumbering[nodeNumbering[e[1]]])
+        d_boundaries.append(renumbering[nodeNumbering[e[2]]])
 
-    return Mesh(vertices, faces, boundaries)
+    return Mesh(vertices, faces, d_boundaries, n_boundaries)
