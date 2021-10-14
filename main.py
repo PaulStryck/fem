@@ -10,9 +10,9 @@ import mesh
 
 
 def main():
-    # pts = 10
-    # m = mesh.unit_square(pts)
-    m = mesh.import_gmsh('untitled.msh')
+    pts = 10
+    m = mesh.unit_square(pts)
+    # m = mesh.import_gmsh('untitled.msh')
 
     # assemble a and b from Ax=b
     a, b = fem.asm_system(m)
@@ -20,8 +20,8 @@ def main():
     n, _ = a.shape
 
 
-    l = len(m.boundaries)
-    r = coo_matrix((np.ones(l), (list(m.boundaries), np.arange(l))),
+    l = len(m.d_boundaries)
+    r = coo_matrix((np.ones(l), (m.d_boundaries, np.arange(l))),
                    shape=(n,l) )
 
     # assemble complete system matrix with enforced dirichlet conditions on
