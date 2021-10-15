@@ -1,3 +1,5 @@
+import math
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cm
@@ -10,17 +12,40 @@ import mesh
 
 
 def main():
-    pts = 10
+    dirichlet_fn = lambda x: 0  # zero dirichlet boundary
+
+    # TODO: neumann condition not yet applied to the solution
+    neumann_fn   = lambda x: 0  # zero neumann boundary
+
+    # eigenfunction source term
+    def f(x):
+        k = 2
+        l = k
+        return ((l*math.pi)**2 + (k*math.pi)**2) * math.sin(l*x[0]*math.pi)*math.sin(k*x[1]*math.pi)
+
+    pts = 100
     m = mesh.unit_square(pts)
     # m = mesh.import_gmsh('untitled.msh')
 
-    # assemble a and b from Ax=b
-    a, b = fem.asm_system(m)
+    # assemble a from Ax=b
+    A = fem.asm_system(m)
 
-    n, _ = a.shape
+    # assemble mass matrix M_{i,j} = \int_{\Omega}\phi_i*\phi_j\dx
+    M = fem.asm_mass(m)
 
+    # rhs of Ax=b
+    b = M @ np.array([f(x) for x in m.vertices])
+
+    n, _ = A.shape
 
     l = len(m.d_boundaries)
+    d_b_vertices = map(dirichlet_fn,
+                       [m.vertices[i] for i in m.d_boundaries])
+
+    n_b_vertices = map(neumann_fn,
+                       [m.vertices[i] for i in m.n_boundaries])
+
+    # assembling the projection matrix for dirichlet boundaries
     r = coo_matrix((np.ones(l), (m.d_boundaries, np.arange(l))),
                    shape=(n,l) )
 
@@ -28,11 +53,11 @@ def main():
     # boundary with r
     # [[A   R]
     #  [R^t 0]]
-    sys = bmat([[a, r], [r.transpose(), None]])
+    sys = bmat([[A, r], [r.transpose(), None]])
 
-    # assemble right and side of complete system. First n*n entries are the
+    # assemble rhs of complete system. First n*n entries are the
     # actual right hand side. It follows the enforced dirichlet condition
-    rhs = np.concatenate((b, np.zeros(l)))
+    rhs = np.concatenate((b, np.array(list(d_b_vertices))))
 
     print('Solving a system of dim {}'.format(sys.shape))
 
