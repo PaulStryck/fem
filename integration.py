@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class ReferenceSimplexQuadrature():
     def __init__(self, dimension, degree, pts, weights):
         self._dimension = dimension
