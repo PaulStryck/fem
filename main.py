@@ -78,7 +78,7 @@ def main():
     err_l1 = []
     err_l2 = []
 
-    for i in range(2,40):
+    for i in range(2,30):
         print("Assemble Grid")
         pts = i
         m = mesh.unit_square(pts)
@@ -90,9 +90,8 @@ def main():
         err_l1.append( error.error_norm(s, uh, 'l1') )
         err_l2.append( error.error_norm(s, uh, 'l2') )
 
-    fig, (ax1, ax2) = plt.subplots(2,1)
-    ax1.plot(err_l1)
-    ax2.plot(err_l2)
+    plt.plot(err_l1, '+')
+    plt.plot(err_l2, '.')
     plt.show()
 
     # plot_result_unit_square(uh)
