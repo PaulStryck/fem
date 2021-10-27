@@ -67,6 +67,17 @@ def asm_system(m: Mesh):
     return coo_matrix((_data, (_i, _j)))
 
 
+def phi(i, x):
+    if i == 1:
+        return 1 - x[0] - x[1]
+    if i == 2:
+        return x[0]
+    if i == 3:
+        return x[1]
+
+    raise ValueError("Unsupported basis function")
+
+
 def dphi(i):
     if i == 1:
         return np.array([-1.,-1.], float)
