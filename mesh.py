@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Iterable, List, Tuple
 
 import gmsh
 
@@ -72,8 +72,8 @@ def unit_square(n: int = 100):
     h = 1 / (n-1)
     vertices: List[Coord]             = []
     faces: List[Tuple[int, int, int]] = []
-    d_boundaries: list                  = []
-    n_boundaries: list                  = []
+    d_boundaries: list                = []
+    n_boundaries: list                = []
 
 
     # Build vertex list
@@ -95,10 +95,10 @@ def unit_square(n: int = 100):
         d_boundaries.append(i)  # bottom edge w\o left w right end point
 
     for i in range(1, n):
-        n_boundaries.append(i + (n-1)*n)  # upper edge w\o left, w\ right end points
+        d_boundaries.append(i + (n-1)*n)  # upper edge w\o left, w\ right end points
 
     for i in range(1, n-1):
-        n_boundaries.append(i*n+n-1)  # right edge w\o lower w\o upper end points
+        d_boundaries.append(i*n+n-1)  # right edge w\o lower w\o upper end points
 
 
     return Mesh(vertices, faces, d_boundaries, n_boundaries)
@@ -214,3 +214,6 @@ def import_gmsh(file: str):
         d_boundaries.append(renumbering[nodeNumbering[e[2]]])
 
     return Mesh(vertices, faces, d_boundaries, n_boundaries)
+
+
+MeshFunction = Tuple[Iterable, Mesh]
