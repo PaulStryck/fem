@@ -7,37 +7,28 @@ from scipy.interpolate import griddata
 from scipy.sparse import bmat, coo_matrix
 from scipy.sparse.linalg import spsolve
 
+import error
 import fem
 import mesh
+from mesh import Mesh, MeshFunction
 
 
-def main():
-    dirichlet_fn = lambda x: 0  # zero dirichlet boundary
-
-    # TODO: neumann condition not yet applied to the solution
-    neumann_fn   = lambda x: 0  # zero neumann boundary
-
-    # eigenfunction source term
-    def f(x):
-        k = 2
-        l = k
-        return ((l*math.pi)**2 + (k*math.pi)**2) * math.sin(l*x[0]*math.pi)*math.sin(k*x[1]*math.pi)
-
-    pts = 100
-    m = mesh.unit_square(pts)
-    # m = mesh.import_gmsh('untitled.msh')
-
+def poisson(m: Mesh, dirichlet_fn, neumann_fn, f) -> MeshFunction:
     # assemble a from Ax=b
+    print("Assemble Laplacian")
     A = fem.asm_system(m)
 
     # assemble mass matrix M_{i,j} = \int_{\Omega}\phi_i*\phi_j\dx
+    print("Assemble Mass")
     M = fem.asm_mass(m)
 
     # rhs of Ax=b
+    print("Assemble RHS")
     b = M @ np.array([f(x) for x in m.vertices])
 
     n, _ = A.shape
 
+    print("Introducing BCs")
     l = len(m.d_boundaries)
     d_b_vertices = map(dirichlet_fn,
                        [m.vertices[i] for i in m.d_boundaries])
@@ -65,11 +56,51 @@ def main():
     # x[n:] contains lagrange multiplies. can be discarded
     x = spsolve(sys.tocsr(), rhs)
 
-    plot_result_unit_square(m, x[:n])
+    return (x[:n], m)
 
 
+def main():
+    dirichlet_fn = lambda x: 0  # zero dirichlet boundary
 
-def plot_result_unit_square(m: mesh.Mesh, x):
+    # TODO: neumann condition not yet applied to the solution
+    neumann_fn   = lambda x: 0  # zero neumann boundary
+
+    # eigenfunction source term
+    k = l = 2
+    def f(x):
+        return ((l*math.pi)**2 + (k*math.pi)**2) * math.sin(l*x[0]*math.pi)*math.sin(k*x[1]*math.pi)
+
+    # analytical solution
+    def s(x):
+        return math.sin(l*x[0]*math.pi)*math.sin(k*x[1]*math.pi)
+
+    # store l1 and l2 errors ||u - uh||
+    err_l1 = []
+    err_l2 = []
+
+    for i in range(2,40):
+        print("Assemble Grid")
+        pts = i
+        m = mesh.unit_square(pts)
+        # m = mesh.import_gmsh('untitled.msh')
+
+        uh = poisson(m, dirichlet_fn, neumann_fn, f)
+
+        print("Compute Errors")
+        err_l1.append( error.error_norm(s, uh, 'l1') )
+        err_l2.append( error.error_norm(s, uh, 'l2') )
+
+    fig, (ax1, ax2) = plt.subplots(2,1)
+    ax1.plot(err_l1)
+    ax2.plot(err_l2)
+    plt.show()
+
+    # plot_result_unit_square(uh)
+
+
+def plot_result_unit_square(uh):
+    x, m = uh
+
     # how many points to interpolate for visualization
     nx, ny = 1000, 1000
 
