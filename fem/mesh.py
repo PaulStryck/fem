@@ -142,10 +142,29 @@ class SimplexMesh:
                                for i in range(3)]
                               for e in self.nfaces[2]]
 
+        # The boundary is the list of all (self.dim_submanifold - 1)-entities
+        # that are adjacent to exactly one (self.dim_submanifold)-entity
+        _adjacency_count = np.repeat(
+            2,
+            self.nfaces[self.dim_submanifold-1].shape[0]
+        )
+
+        d_sub = self.dim_submanifold
+        for es in self.adjacency(d_sub,d_sub-1):
+            for _, e in es:
+                _adjacency_count[e] -= 1
+
+        self._boundary = np.nonzero(_adjacency_count)[0]
+
 
     @property
     def element(self):
         return self._element
+
+
+    @property
+    def boundary(self):
+        return self._boundary
 
 
     @property
