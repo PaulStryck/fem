@@ -1,6 +1,7 @@
-import numpy as np
-from math import factorial
 from itertools import combinations_with_replacement
+from math import factorial
+
+import numpy as np
 from scipy.special import binom
 
 

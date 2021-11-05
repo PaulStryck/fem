@@ -1,9 +1,7 @@
 import numpy as np
-from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.tri import Triangulation
-from fem.reference_elements import referenceTriangle
+
 from fem.finite_elements import PElement
+from fem.reference_elements import referenceTriangle
 
 # TODO: Maybe a FEFunctionSubSpace with SubMesh with sparse matrix
 #       to keep node numbering identical

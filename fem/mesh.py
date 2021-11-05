@@ -1,5 +1,7 @@
-import numpy as np
 from itertools import combinations
+
+import numpy as np
+
 from fem.reference_elements import referenceTriangle
 
 
