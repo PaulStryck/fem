@@ -1,6 +1,7 @@
 from itertools import combinations
 
 import numpy as np
+from scipy.spatial import Delaunay
 
 from fem.reference_elements import referenceTriangle, referenceInterval
 
@@ -10,6 +11,26 @@ class SimplexMesh:
     n dimensional simplex mesh. Mesh is a k-dim submanifold of an n>=2
     dimensional space. Obviously k<=n.
     '''
+
+    @classmethod
+    def Create_2d_unit_square_unstructured(cls, n):
+        # include all corner points
+        corners = np.array([[0,0], [1,0], [1,1], [0,1]])
+
+        # include sufficient points on all edges
+        pts = np.random.uniform(low=[0], high=[1], size=(4, n-2))
+        e_0 = np.array([pts[0], np.zeros(n-2)]).T
+        e_1 = np.array([pts[1], np.zeros(n-2)]).T[:,[1, 0]]
+        e_2 = np.array([pts[2], np.ones(n-2)]).T
+        e_3 = np.array([pts[3], np.ones(n-2)]).T[:,[1, 0]]
+
+        inner = np.random.uniform(low=[0,0], high=[1,1], size=(n**2-4*(n-2)-4,2))
+        all_pts = np.vstack([corners, e_0, e_1, e_2, e_3, inner])
+
+        mesh = Delaunay(all_pts)
+
+        return cls(mesh.points, mesh.simplices, referenceTriangle)
+
 
     @classmethod
     def Create_2d_unit_square_structured(cls, n):
