@@ -2,7 +2,7 @@ from itertools import combinations
 
 import numpy as np
 
-from fem.reference_elements import referenceTriangle
+from fem.reference_elements import referenceTriangle, referenceInterval
 
 
 class SimplexMesh:
@@ -35,6 +35,16 @@ class SimplexMesh:
                 faces[ind+1] = [i*n + j+1, (i+1)*n + j+1, (i+1)*n + j]
 
         return cls(vertices, faces, referenceTriangle)
+
+    @classmethod
+    def Create_1d_unit_interval_structured(cls, n):
+        if n < 2:
+            n = 2
+
+        vertices = np.expand_dims(np.linspace(0,1,n), 1)
+        faces    = np.array([[i,i+1] for i in range(n-1)])
+
+        return cls(vertices, faces, referenceInterval)
 
 
     def __init__(self, vertices, cells, element):
@@ -83,8 +93,8 @@ class SimplexMesh:
         # dimension of the mesh
         self.dim_submanifold = cells.shape[1] - 1
 
-        if self.dim != 2 and self.dim_submanifold != 2:
-            raise NotImplementedError()
+        # if self.dim != 2 and self.dim_submanifold != 2:
+        #     raise NotImplementedError()
 
         if self.dim_submanifold > self.dim:
             raise ValueError(
@@ -97,12 +107,6 @@ class SimplexMesh:
 
         self._element = element
 
-        # create global edge numbering, where the global direction is always
-        # low to high
-        _edges = np.array(list(set(tuple(sorted(e))
-                                   for t in cells
-                                   for e in combinations(t, 2))))
-
         # self.nfaces doubles as the global numbering for all entities within
         # their dimension.
         # And for dimension n to dimension 0, for n > 0
@@ -112,37 +116,46 @@ class SimplexMesh:
         #   n = 1: Lower vertex id to higher vertex id
         #   n = 2: Counterclockwise
         self.nfaces = {
-            0: vertices,
-            1: _edges,
-            2: cells
+            0: vertices
         }
+
+        for n in range(1, self.dim_submanifold):
+            # create global edge numbering, where the global direction is always
+            # low to high
+            _edges = np.array(list(set(tuple(sorted(e))
+                                       for t in cells
+                                       for e in combinations(t, 2))))
+            self.nfaces[n] = _edges
+
+        self.nfaces[self.dim_submanifold] = cells
 
         self._entities_per_dimension = np.array(
-            [self.nfaces[d].shape[0] for d in sorted(self.nfaces)]
+            [self.nfaces[n].shape[0] for n in sorted(self.nfaces)]
         )
 
-        # self.klookup[i][j] is a mapping from j-entities to i-entites
-        # where j > i, and i > 0. For i = 0 refer to self.nfaces
-        # self.klookup[i][j] -> [[({-1,1}, a)]*b]*c
-        #   where {-1,1} is the local direction relative to the global one
-        #         a is the id of the respective global entity ID
-        #         b is how many i entities each j-entity consists of
-        #         c is how many j-entities the mesh is made of
-        self._klookup = {
-            1: {2: None}
-        }
+        if self.dim_submanifold == 2:
+            # self.klookup[i][j] is a mapping from j-entities to i-entites
+            # where j > i, and i > 0. For i = 0 refer to self.nfaces
+            # self.klookup[i][j] -> [[({-1,1}, a)]*b]*c
+            #   where {-1,1} is the local direction relative to the global one
+            #         a is the id of the respective global entity ID
+            #         b is how many i entities each j-entity consists of
+            #         c is how many j-entities the mesh is made of
+            self._klookup = {
+                1: {2: None}
+            }
 
 
-        # create inverse function of self.nfaces[1]
-        # _edge_lookup: Edge -> (Direction, GlobalEdgeID)
-        # Where Edge \in (VertexID, VertexID)
-        _edge_lookup = {tuple(e): (d, i)
-                        for i, e_ in enumerate(self.nfaces[1])
-                        for d, e in ((1, e_), (-1, reversed(e_)))}
+            # create inverse function of self.nfaces[1]
+            # _edge_lookup: Edge -> (Direction, GlobalEdgeID)
+            # Where Edge \in (VertexID, VertexID)
+            _edge_lookup = {tuple(e): (d, i)
+                            for i, e_ in enumerate(self.nfaces[1])
+                            for d, e in ((1, e_), (-1, reversed(e_)))}
 
-        self._klookup[1][2] = [[_edge_lookup[(e[i], e[(i+1)%3])]
-                               for i in range(3)]
-                              for e in self.nfaces[2]]
+            self._klookup[1][2] = [[_edge_lookup[(e[i], e[(i+1)%3])]
+                                   for i in range(3)]
+                                  for e in self.nfaces[2]]
 
         # The boundary is the list of all (self.dim_submanifold - 1)-entities
         # that are adjacent to exactly one (self.dim_submanifold)-entity
@@ -153,7 +166,9 @@ class SimplexMesh:
 
         d_sub = self.dim_submanifold
         for es in self.adjacency(d_sub,d_sub-1):
-            for _, e in es:
+            for e in es:
+                if type(e) is tuple:
+                    _, e = e
                 _adjacency_count[e] -= 1
 
         self._boundary = np.nonzero(_adjacency_count)[0]

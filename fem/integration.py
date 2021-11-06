@@ -12,7 +12,7 @@ class ReferenceSimplexQuadrature():
             raise ValueError(
                 "Number of quadrature points and weights must match")
 
-        if self._pts.ndim != self._dimension:
+        if self._pts.shape[1] != self._dimension:
             raise ValueError("Dimension must match shape of pts")
 
     @property
@@ -41,7 +41,7 @@ def gauss_legendre_quadrature(dimension, degree):
         points, weights = np.polynomial.legendre.leggauss(npoints)
 
         # map numpys [-1,1] interval back to [0,1]
-        points = (points + 1.) / 2.
+        points = np.expand_dims((points + 1.) / 2., 1)
         weights = weights / 2.
 
     elif dimension == 2:
@@ -51,11 +51,11 @@ def gauss_legendre_quadrature(dimension, degree):
         p1 = gauss_legendre_quadrature(1, degree + 1)
         q1 = gauss_legendre_quadrature(1, degree)
 
-        points = np.array([(p, q * (1 - p))
+        points = np.array([(p[0], q[0] * (1 - p[0]))
                            for p in p1.points
                            for q in q1.points])
 
-        weights = np.array([p * q * (1 - x)
+        weights = np.array([p * q * (1 - x[0])
                             for p, x in zip(p1.weights, p1.points)
                             for q in q1.weights])
     else:

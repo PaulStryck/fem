@@ -42,19 +42,17 @@ class FEFunctionSpace():
 
 
         # Compute list of boundary node indices
-        # TODO: Create recursive version to allow arbitrary dimensions
+        # TODO: Create recursive version for readability
         bound_nodes = []
-        for b in self.mesh.boundary:
-            N_d = self._element.nodes_per_entity[1]
-            g = self.__global(1,b)
-            bound_nodes.append(np.arange(g, g+N_d, dtype=np.int))
-
-        for bs in self.mesh.adjacency(1,0)[self.mesh.boundary]:
-            for b in bs:
-                N_d = self._element.nodes_per_entity[0]
-                g = self.__global(0,b)
-                n = np.arange(g, g+N_d, dtype=np.int)
-                bound_nodes.append(n)
+        bs = self.mesh.boundary
+        for d in range(self._mesh.element.dim, 0, -1):
+            # use d - 1
+            for b in bs.flatten():
+                N_d = self._element.nodes_per_entity[d-1]
+                g = self.__global(d-1,b)
+                bound_nodes.append(np.arange(g, g+N_d, dtype=np.int))
+            if d > 1:
+                bs = self.mesh.adjacency(d-1,d-2)[bs]
 
         self._boundary_nodes = np.unique(np.concatenate(bound_nodes))
 

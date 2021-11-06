@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Cell():
     def __init__(self, vertices, topology):
         self._vertices = np.array(vertices, dtype=np.double)
@@ -32,8 +33,16 @@ class Cell():
 
 class Interval(Cell):
     def __init__(self, vertices, topology):
-        raise NotImplementedError()
         Cell.__init__(self, vertices, topology)
+
+
+    def affine_transform(self, e):
+        return lambda x: (e[1]-e[0]) * x + e[0]
+
+    def affine_transform_jacobian(self, e):
+        j = e[1] - e[0]
+
+        return j, 1/j
 
 
 class Triangle(Cell):
@@ -51,7 +60,7 @@ class Triangle(Cell):
     def affine_transform_jacobian(self, e):
         jt = np.array([e[1] - e[0], e[2] - e[0]], dtype=np.double)
 
-        detj = np.linalg.det(jt)
+        detj = np.abs(np.linalg.det(jt))
         jTinv = np.linalg.inv(jt)
 
         return detj, jTinv
@@ -67,10 +76,10 @@ Topology Data structure:
 Dict[dim, cell] -> [vertex]
 
 '''
-# referenceInterval = Interval([[0],[1]],
-#                              {0: {0: [0],
-#                                   1: [1]},
-#                               1: {0: [0,1]}})
+referenceInterval = Interval([[0],[1]],
+                             {0: {0: [0],
+                                  1: [1]},
+                              1: {0: [0,1]}})
 
 referenceTriangle = Triangle([[0,0], [1,0], [0,1]],
                              {0: {0: [0],
