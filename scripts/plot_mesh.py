@@ -29,7 +29,7 @@ def plot_mesh(m, labels):
                         textcoords='offset points', color=colors[0])
 
         # annotate higher dim entites
-        for d in range(1, m.dim+1):
+        for d in range(1, m.dim_submanifold+1):
             adj = m.adjacency(d, 0)
             for i, e in enumerate(adj):
                 x = np.mean(m.nfaces[0][e, :], axis=0)
