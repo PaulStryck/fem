@@ -8,13 +8,19 @@ from fem.mesh import SimplexMesh
 
 def plot_mesh(m, labels):
     fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
+
+    projection = 'rectilinear'
+    if m.dim == 3:
+        projection = '3d'
+
+    ax = fig.add_subplot(projection=projection)
 
     colors = ['black', 'red', 'blue']
 
     for i, e in enumerate(m.nfaces[1]):
         # plot all edges
-        plt.plot(m.nfaces[0][e, 0], m.nfaces[0][e, 1], 'k')
+        # plt.plot(m.nfaces[0][e, 0], m.nfaces[0][e, 1], m.nfaces[0][e, 2])
+        plt.plot(*(m.nfaces[0][e].T), 'k')
 
     if labels:
         # annotate points
@@ -30,7 +36,7 @@ def plot_mesh(m, labels):
                 ax.annotate('(%s, %s)' % (d, i), xy=x, xytext=(0, 1),
                             textcoords='offset points', color=colors[d])
 
-    ax.axis(np.add(ax.axis(), [-.1, .1, -.1, .1]))
+    # ax.axis(np.add(ax.axis(), [-.1, .1, -.1, .1]))
 
     plt.show()
 
@@ -49,5 +55,6 @@ if __name__ == "__main__":
     # m = SimplexMesh.Create_2d_unit_square_structured(n)
     m = SimplexMesh.Create_2d_unit_square_unstructured(args.n[0])
 
+    m = SimplexMesh.Create_2d_manifold(args.n[0])
     plot_mesh(m, args.labels)
 

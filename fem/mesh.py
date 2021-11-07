@@ -57,6 +57,33 @@ class SimplexMesh:
 
         return cls(vertices, faces, referenceTriangle)
 
+
+    @classmethod
+    def Create_2d_manifold(cls, n):
+        if n < 2:
+            n = 2
+
+        h = 1 / (n-1)
+        k = n*n            # Number of vertices
+        l = 2*(n-1)*(n-1)  # Number of faces
+        vertices = np.empty((k,3), dtype=np.double)
+        faces    = np.empty((l,3), dtype=np.uint)
+
+        # Build vertex list
+        # bottom left to top right, row wise
+        f = lambda x,y: ((x-0.5)**2+(y-0.5)**2)**0.5
+        for i in range(n):
+            for j in range(n):
+                vertices[i*n+j] = [j * h, i * h, f(i*h,j*h)]
+
+        for i in range(n-1):
+            for j in range(n-1):
+                ind = 2 * (i*(n-1) + j)
+                faces[ind]   = [i*n + j  , i*n + j + 1  , (i+1)*n + j]
+                faces[ind+1] = [i*n + j+1, (i+1)*n + j+1, (i+1)*n + j]
+
+        return cls(vertices, faces, referenceTriangle)
+
     @classmethod
     def Create_1d_unit_interval_structured(cls, n):
         if n < 2:

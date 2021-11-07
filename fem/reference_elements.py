@@ -51,7 +51,7 @@ class Triangle(Cell):
 
 
     def affine_transform(self, e):
-        B = np.array([e[1] - e[0], e[2] - e[0]], dtype=np.double)
+        B = np.array([e[1] - e[0], e[2] - e[0]], dtype=np.double).T
         d = e[0]
 
         return lambda x: B@x + d
@@ -60,8 +60,13 @@ class Triangle(Cell):
     def affine_transform_jacobian(self, e):
         jt = np.array([e[1] - e[0], e[2] - e[0]], dtype=np.double)
 
-        detj = np.abs(np.linalg.det(jt))
-        jTinv = np.linalg.inv(jt)
+        if jt.shape[-1] == jt.shape[-2]:
+            detj = np.abs(np.linalg.det(jt))
+            jTinv = np.linalg.inv(jt)
+        else:
+            detj = np.linalg.det(jt@jt.T)**0.5
+            jTinv = np.linalg.pinv(jt)
+            jTinv = np.round(jTinv)
 
         return detj, jTinv
 
