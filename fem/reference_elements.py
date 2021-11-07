@@ -58,6 +58,17 @@ class Triangle(Cell):
 
 
     def affine_transform_jacobian(self, e):
+        '''
+        Jacobian and Mapping needed to compute integrals of gradients of basis
+        functions.
+        Assumes the mapping F: T -> e, where T is this cell (self) and :param e:
+
+        Computes |JF| and D(F^-1) (which agrees with (DF)^-1
+
+        Straig forward computation if spatial dimensions of T and e agree.
+        In the case of an embedded manifold, gernalized jacobian and
+        left-inverse are computed as F has to be injective.
+        '''
         jt = np.array([e[1] - e[0], e[2] - e[0]], dtype=np.double)
 
         if jt.shape[-1] == jt.shape[-2]:
