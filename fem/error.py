@@ -1,9 +1,10 @@
+from os import wait
 import numpy as np
 
 from fem.integration import gauss_legendre_quadrature
 
 
-def error(u, v, f):
+def error(u, v, f, grad=False):
     '''
     Compute ∫ f(u(x), v(x)) dx on Ω
     :param v: must be a :class FEFunction: with domain Ω
@@ -14,10 +15,13 @@ def error(u, v, f):
     # Quadrature rule of order 36 where the spation dimension
     # matches the spation dimension of the reference element of the mesh
     quadrature = gauss_legendre_quadrature(v.fs.element.cell.dim,
-                                           36)
+                                           3)
 
     # Evaluate the local basis function at all quadrature points
-    phi = v.fs.element.phi_eval(quadrature.points)
+    if grad:
+        phi = v.fs.element.grad_phi_eval(quadrature.points)
+    else:
+        phi = v.fs.element.phi_eval(quadrature.points)
 
     # Store the intermediate values and compute sum afterwords to prevent
     # round off errors
@@ -28,15 +32,17 @@ def error(u, v, f):
         # Mapping for reference elemnt to current mesh element
         F_i     = v.fs.element.cell.affine_transform(e)
 
-        detj, _ = v.fs.element.cell.affine_transform_jacobian(e)
+        detj, jTinv = v.fs.element.cell.affine_transform_jacobian(e)
 
         # u(F(x)) for all quadrature points
         u_F_i_x = np.array(list(
             map(u, map(F_i, quadrature.points))
         ))
 
-        # v(F(x)) for all quadrature points
-        v_F_i_x = np.dot(v.coefficients[nodes], phi.T)
+        if grad:
+            v_F_i_x = v.coefficients[nodes] @ (phi @ jTinv.T)
+        else:
+            v_F_i_x = np.dot(v.coefficients[nodes], phi.T)
 
         # f(u(F(x)), v(F(x)))
         f_x = np.array(list(map(f, u_F_i_x, v_F_i_x)))
