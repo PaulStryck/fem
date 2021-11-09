@@ -14,17 +14,23 @@ class FEFunctionSpace():
         # Degrees of freedom within the entire function space
         # This is not known a priori and computed whilst building the local to
         # global node numbering
-        self._dim = 0
+        # TODO: currently wrong due to SubSimplex consisting of too many
+        # vertices
+        self._dim = sum([self._mesh.entities_per_dimension[d]
+                         * self._element.nodes_per_entity[d]
+                         for d in range(1+self._mesh.dim_submanifold)])
 
         # Local -> Global node numbering lookup table
         # self._mapping[cell][loc] -> global node id
         n = self._mesh.element.dim
         self._mapping = np.zeros((self._mesh.entities_per_dimension[n], self._element.dim),
-                                 dtype=np.int)
+                                 dtype=np.uint)
 
         # Generate the local -> global node numbering lookup table
         c = self._mesh.element.dim
-        for i, cell in enumerate(self._mesh.nfaces[c]):
+        # TODO: adjust iterator
+        for i in range(len(self._mesh.nfaces[c])):
+        # for i in self._mesh.nface_indices:
             for d in self._element.local_nodes:
                 N_d = self._element.nodes_per_entity[d]
                 for e in self._element.local_nodes[d]:
@@ -34,27 +40,29 @@ class FEFunctionSpace():
                     if type(adj) is tuple:
                         direction, adj = adj
 
-                    g = self.__global(d, adj)
-                    self._mapping[i,loc] = np.arange(g, g+N_d, dtype=np.int)[::direction]
+                    g = self.__global(d, self._mesh.entity_numbering[d][adj])
+                    self._mapping[i,loc] = np.arange(g, g+N_d, dtype=np.uint)[::direction]
 
-                    if self._dim < g+N_d:
-                        self._dim = g+N_d
-
+                    _g = self.__global(d, adj)
+                    if self._dim < _g+N_d:
+                        self._dim = _g+N_d
 
         # Compute list of boundary node indices
         # TODO: Create recursive version for readability
         bound_nodes = []
-        bs = self.mesh.boundary
+        bs = self.mesh.boundary_cells
         for d in range(self._mesh.element.dim, 0, -1):
             # use d - 1
             for b in bs.flatten():
                 N_d = self._element.nodes_per_entity[d-1]
                 g = self.__global(d-1,b)
-                bound_nodes.append(np.arange(g, g+N_d, dtype=np.int))
+                bound_nodes.append(np.arange(g, g+N_d, dtype=np.uint))
             if d > 1:
                 bs = self.mesh.adjacency(d-1,d-2)[bs]
 
-        self._boundary_nodes = np.unique(np.concatenate(bound_nodes))
+        self._boundary_nodes = []
+        if len(bound_nodes) > 0:
+            self._boundary_nodes = np.unique(np.concatenate(bound_nodes))
 
 
     def glob(self, d, i):

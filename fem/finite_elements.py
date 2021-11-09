@@ -109,10 +109,12 @@ class PElement(FiniteElement):
 
         self._deg = deg
 
-        if self.cell.dim == 1 and self.deg == 1:
-            self._nodes = np.expand_dims(np.linspace(0,1,2), 1)
+        if self.cell.dim == 1:
+            self._nodes = np.expand_dims(np.linspace(0,1,self.deg+1), 1)
             self._local_nodes = {0: {0: [0],
                                      1: [len(self._nodes)-1]}}
+            if self.deg > 1:
+                self._local_nodes[1] = {0: list(range(1, self.deg))}
         elif self.cell.dim == 2 and self.deg == 1:
             self._nodes = self.__lagrange_pts(self.deg)
             self._local_nodes = {0: {0: [0],

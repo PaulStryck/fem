@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib.cm import ScalarMappable, get_cmap
 from matplotlib.colors import Normalize
+from scipy.sparse import bmat, coo_matrix
 
 from matplotlib import pyplot as plt
 from matplotlib.tri import Triangulation
@@ -14,22 +15,40 @@ from fem.reference_elements import referenceTriangle, referenceInterval
 class FEFunction():
     def __init__(self, fs):
         self._fs = fs
-        self._coefficients = np.array([np.NAN]*fs.dim)
+
+        self._embedded_coefficients = None
+        self._coefficients = None
 
 
     def interpolate(self, f):
-        for i, (pts, globi) in enumerate(self._fs.elements):
+        _c = []
+        for pts, globi in self._fs.elements:
             f_i = self._fs.element.cell.affine_transform(pts)
             for k, l in enumerate(globi):
-                if self._coefficients[l] == np.NAN:
-                    continue
                 node = f_i(self._fs.element.nodes[k])
-                self._coefficients[l] = f(node)
+                _c.append((l, f(node)))
+
+        _c.sort()
+        self._embedded_coefficients = dict(_c)
 
 
     @property
     def coefficients(self):
-        return self._coefficients
+        return np.array(list(self._embedded_coefficients.values()))
+
+
+    @coefficients.setter
+    def coefficients(self, cs):
+        self._embedded_coefficients = dict(enumerate(cs))
+
+    @property
+    def embedded_coeffs_indices(self):
+        return np.array(list(self._embedded_coefficients.keys()))
+
+    @property
+    def embedded_coeffs_values(self):
+        return np.array(list(self._embedded_coefficients.values()))
+
 
     @property
     def fs(self):
@@ -39,12 +58,13 @@ class FEFunction():
     def plot_submanifold(self):
         fs = self._fs
 
-        d = 2 * (fs.element.deg + 1)
+        d = 2 * (fs.element.deg + 1)  # Render each element as d cells
 
         if fs.element.cell is referenceInterval:
             local_coords = np.expand_dims(np.linspace(0, 1, d), 1)
+            cells = np.array([[i, i+1] for i in range(d-1)], dtype=np.uint)
         elif fs.element.cell is referenceTriangle:
-            local_coords, triangles = self._lagrange_triangles(d)
+            local_coords, cells = self._lagrange_triangles(d)
         else:
             raise ValueError("Unknown reference cell: %s" % fs.element.cell)
 
@@ -59,10 +79,10 @@ class FEFunction():
         xs = np.empty((fs._mesh.dim, n_bpts *
                        fs._mesh.entities_per_dimension[-1]))
 
-        vs = np.empty(n_bpts * fs._mesh.entities_per_dimension[-1])
-        ts = np.empty((len(triangles) * fs._mesh.entities_per_dimension[-1],3))
-        values = np.empty(len(triangles) * fs._mesh.entities_per_dimension[-1])
-        n_ts = len(triangles)
+        ts = np.empty((len(cells) * fs._mesh.entities_per_dimension[-1],
+                       len(cells[0])), dtype=np.uint)
+        values = np.empty(len(cells) * fs._mesh.entities_per_dimension[-1])
+        n_ts = len(cells)
 
         for c in range(fs._mesh.entities_per_dimension[-1]):
             vertex_coords = fs._mesh.nfaces[0][c_fs.mapping[c, :], :]
@@ -72,23 +92,32 @@ class FEFunction():
             val = np.dot(f_eval, local_function_coefs)
 
             xs[:,c*n_bpts:(c+1)*n_bpts] = x.T
-            ts[c*n_ts:(c+1)*n_ts] = triangles + c*n_bpts
-            for i in range(len(triangles)):
-                values[c*n_ts+i] = val[triangles[i].astype(int)].mean()
+            ts[c*n_ts:(c+1)*n_ts] = cells + c*n_bpts
+            for i in range(len(cells)):
+                values[c*n_ts+i] = val[cells[i].astype(int)].mean()
 
-        ax = plt.figure().add_subplot(projection='3d')
-        p3dc = ax.plot_trisurf(Triangulation(xs[0], xs[1], ts),
-                               xs[2], color='r', linewidth=0)
-
-        x, y, z, _ = p3dc._vec
-        slices = p3dc._segslices
-        triangles = np.array([np.array((x[s],y[s],z[s])).T for s in slices])
-
-        xb, yb, zb = triangles.mean(axis=1).T
-
-        # usual stuff
+        # color values for each cell
         norm = Normalize()
         colors = get_cmap('summer')(norm(values))
+
+        if fs.mesh.dim == 2 and fs.mesh.dim_submanifold == 1:
+            ax = plt.figure().add_subplot()
+            for cell, color in zip(ts, colors):
+                ax.plot(xs[0][cell], xs[1][cell], color=color)
+        elif fs.mesh.dim == 3 and fs.mesh.dim_submanifold == 1:
+            ax = plt.figure().add_subplot(projection='3d')
+            for cell, color in zip(ts, colors):
+                ax.plot(xs[0][cell], xs[1][cell], xs[2][cell], color=color)
+        elif fs.mesh.dim == 3 and fs.mesh.dim_submanifold == 2:
+            ax = plt.figure().add_subplot(projection='3d')
+            p3dc = ax.plot_trisurf(Triangulation(xs[0], xs[1], ts),
+                                   xs[2], color='r', linewidth=0)
+
+            # set the face colors of the Poly3DCollection
+            p3dc.set_fc(colors)
+
+        plt.show()
+
 
         # set the face colors of the Poly3DCollection
         p3dc.set_fc(colors)

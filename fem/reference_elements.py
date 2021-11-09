@@ -2,9 +2,10 @@ import numpy as np
 
 
 class Cell():
-    def __init__(self, vertices, topology):
+    def __init__(self, vertices, topology, lower_element):
         self._vertices = np.array(vertices, dtype=np.double)
         self._topology = topology
+        self._lower_element = lower_element
         self._dim = self._vertices.shape[1]
 
 
@@ -30,10 +31,14 @@ class Cell():
     def dim(self):
         return self._dim
 
+    @property
+    def lower_element(self):
+        return self._lower_element
+
 
 class Interval(Cell):
     def __init__(self, vertices, topology):
-        Cell.__init__(self, vertices, topology)
+        Cell.__init__(self, vertices, topology, None)
 
 
     def affine_transform(self, e):
@@ -46,8 +51,8 @@ class Interval(Cell):
 
 
 class Triangle(Cell):
-    def __init__(self, vertices, topology):
-        Cell.__init__(self, vertices, topology)
+    def __init__(self, vertices, topology, lower_element):
+        Cell.__init__(self, vertices, topology, lower_element)
 
 
     def affine_transform(self, e):
@@ -83,9 +88,9 @@ class Triangle(Cell):
 
 
 class Tetrahedron(Cell):
-    def __init__(self, vertices, topology):
+    def __init__(self, vertices, topology, lower_element):
         raise NotImplementedError()
-        Cell.__init__(self, vertices, topology)
+        Cell.__init__(self, vertices, topology, lower_element)
 
 '''
 Topology Data structure:
@@ -103,4 +108,5 @@ referenceTriangle = Triangle([[0,0], [1,0], [0,1]],
                                   2: [2]},
                               1: {0: [0,1],
                                   1: [1,2],
-                                  2: [2,0]}})
+                                  2: [2,0]}},
+                             referenceInterval)

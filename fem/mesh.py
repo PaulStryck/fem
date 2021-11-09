@@ -71,7 +71,7 @@ class SimplexMesh:
 
         # Build vertex list
         # bottom left to top right, row wise
-        f = lambda x,y: ((x-0.5)**2+(y-0.5)**2)**0.5
+        f = lambda x,y: np.sin(-(x-0.5)*(y-.5))
         for i in range(n):
             for j in range(n):
                 vertices[i*n+j] = [j * h, i * h, f(i*h,j*h)]
@@ -139,7 +139,7 @@ class SimplexMesh:
         self.dim             = vertices.shape[1]
 
         # dimension of the mesh
-        self.dim_submanifold = cells.shape[1] - 1
+        self.dim_submanifold = element.dim
 
         # if self.dim != 2 and self.dim_submanifold != 2:
         #     raise NotImplementedError()
@@ -157,7 +157,7 @@ class SimplexMesh:
 
         # self.nfaces doubles as the global numbering for all entities within
         # their dimension.
-        # And for dimension n to dimension 0, for n > 0
+        # And vertex list for dimension n to dimension 0, for n > 0
         # And actual spatial coordinates for n = 0
         # Everything in self.nfaces has a globally implied direction.
         #   n = 0: (Implied to be of [x_1, x_2, ..., x_n] form
@@ -176,6 +176,9 @@ class SimplexMesh:
             self.nfaces[n] = _edges
 
         self.nfaces[self.dim_submanifold] = cells
+
+        self.entity_numbering = dict([(i, list(range(len(self.nfaces[i]))))
+                                      for i in self.nfaces.keys()])
 
         self._entities_per_dimension = np.array(
             [self.nfaces[n].shape[0] for n in sorted(self.nfaces)]
@@ -219,7 +222,16 @@ class SimplexMesh:
                     _, e = e
                 _adjacency_count[e] -= 1
 
-        self._boundary = np.nonzero(_adjacency_count)[0]
+        self._boundary_cells = np.where(_adjacency_count == 1)[0]
+        self._boundary_mesh = None
+
+        if len(self.boundary_cells) > 0:
+            d = self.dim_submanifold
+            boundary_cells = self.adjacency(d-1,0)[self.boundary_cells]
+
+            self._boundary_mesh = SubSimplexMesh(outer=self,
+                                                 cells=boundary_cells,
+                                                 n_lookup=self.boundary_cells)
 
 
     @property
@@ -228,8 +240,12 @@ class SimplexMesh:
 
 
     @property
-    def boundary(self):
-        return self._boundary
+    def boundary_cells(self):
+        return self._boundary_cells
+
+    @property
+    def boundary_mesh(self):
+        return self._boundary_mesh
 
 
     @property
@@ -269,4 +285,16 @@ class SimplexMesh:
 
 
     # TODO: figure out how to implement boundary operator. This should return a
-    # list of all connected boundaries of the submanifold.
+    # list of all connected boundaaies of the submanifold.
+
+class SubSimplexMesh(SimplexMesh):
+    def __init__(self, outer: SimplexMesh, cells, n_lookup):
+        SimplexMesh.__init__(self,
+                             vertices=outer.nfaces[0],
+                             cells=cells,
+                             element=outer.element.lower_element)
+
+        # TODO: Build lookup table for outer numbering
+        # Vertex numbering stays the same
+        # Highest dimensional numbering table is known
+        self.entity_numbering[self.dim_submanifold] = n_lookup
