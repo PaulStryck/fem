@@ -1,4 +1,3 @@
-from os import wait
 import numpy as np
 
 from fem.integration import gauss_legendre_quadrature
