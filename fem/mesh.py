@@ -1,5 +1,6 @@
 from itertools import combinations
-from typing import Optional, Union
+from os import wait
+from typing import Callable, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -33,6 +34,18 @@ class MaskedList():
     @property
     def mask(self):
         return self._mask.view()
+
+    @mask.setter
+    def mask(self, mask):
+        if self.arr.shape[0] != mask.shape[0]:
+            raise ValueError("Mask length must match arr length")
+        self._mask = mask
+
+    def halfdeepcopy(self, mask: Optional[npt.NDArray[np.bool_]]):
+        if mask is None:
+            return MaskedList(self._arr.view(), self._mask.copy())
+
+        return MaskedList(self._arr.view(), mask)
 
 
 
@@ -206,7 +219,7 @@ class SimplexMesh:
             # create global edge numbering, where the global direction is always
             # low to high
             _edges = list(set(tuple(sorted(e))
-                              for t in cells.arr
+                              for t in cells.masked_view
                               for e in combinations(t, 2)))
             self.nfaces[n] = MaskedList(np.array(_edges))
 
@@ -238,7 +251,7 @@ class SimplexMesh:
 
             self._klookup[1][2] = [[_edge_lookup[(e[i], e[(i+1)%3])]
                                    for i in range(3)]
-                                  for e in self.nfaces[2].arr]
+                                  for e in self.nfaces[2].masked_view]
 
         # The boundary is the list of all (self.dim_submanifold - 1)-entities
         # that are adjacent to exactly one (self.dim_submanifold)-entity
@@ -255,7 +268,7 @@ class SimplexMesh:
 
                 _adjacency_count[e] -= 1
 
-        _adjacency_count[self.nfaces[d_sub-1].mask.nonzero()] = 0
+        _adjacency_count[self.nfaces[d_sub-1].mask.nonzero()[0]] = 2
 
         self._interior_facets = np.where(_adjacency_count == 0)[0]
         self._boundary_mesh = None
@@ -263,7 +276,7 @@ class SimplexMesh:
         n_facets = self.nfaces[d_sub-1].masked_view.shape[0]
         n_interior_facets = self._interior_facets.shape[0]
 
-        if (n_facets - n_interior_facets) > 0:
+        if (n_facets - n_interior_facets) > 0 and d_sub > 1:
             masked_cells = MaskedList(self.nfaces[d_sub-1].arr.view())
             masked_cells.mask[self._interior_facets] = True
 
@@ -321,6 +334,22 @@ class SimplexMesh:
 
         return self._klookup[d2][d1]
 
+    def split(self, predicate: Callable[[npt.NDArray],bool]):
+        d_sub = self.dim_submanifold
+
+        cond = np.array(
+            [all(map(predicate, self.nfaces[0].arr[cells]))
+             for cells in self.nfaces[d_sub].arr]
+        )
+        ma_1 = np.logical_or(self.nfaces[d_sub].mask, ~cond)
+        ma_2 = np.logical_or(self.nfaces[d_sub].mask, cond)
+
+        m_1 = SubSimplexMesh(outer=self,
+                             cells=self.nfaces[d_sub].halfdeepcopy(ma_1))
+        m_2 = SubSimplexMesh(outer=self,
+                             cells=self.nfaces[d_sub].halfdeepcopy(ma_2))
+        return m_1, m_2
+
 
     # TODO: figure out how to implement boundary operator. This should return a
     # list of all connected boundaaies of the submanifold.
@@ -335,12 +364,57 @@ class SubSimplexMesh(SimplexMesh):
         for c in cells.masked_view:
             vertices.mask[c] = False
 
+        d_sub = cells.arr[0].shape[0] - 1
+        if outer.dim_submanifold == d_sub:
+            element = outer.element
+        elif outer.dim_submanifold == d_sub +1:
+            element = outer.element.lower_element
+        else:
+            raise NotImplementedError()
+
         SimplexMesh.__init__(self,
                              _v=vertices,
                              _c=cells,
-                             element=outer.element.lower_element)
+                             element=element)
         self._outer = outer
+
+        # TODO: correct edge numbering
+        # if d_sub == 2:
+        #     self.nfaces[1] = outer.nfaces[1]
+        #     self.nfaces[1].mask = np.array([True]*len(self.nfaces[1].mask))
+        #     # create inverse function of self.nfaces[1]
+        #     # _edge_lookup: Edge -> (Direction, GlobalEdgeID)
+        #     # Where Edge \in (VertexID, VertexID)
+        #     _edge_lookup = {tuple(e): (d, i)
+        #                     for i, e_ in enumerate(self.nfaces[1].arr)
+        #                     for d, e in ((1, e_), (-1, reversed(e_)))}
+
+        #     for e in self.nfaces[2].masked_view:
+        #         for i in range(3):
+        #             _, n = _edge_lookup[(e[i], e[(i+1)%3])]
+        #             self.nfaces[1].mask[n] = False
+
+        #     self._klookup[1][2] = [[_edge_lookup[(e[i], e[(i+1)%3])]
+        #                            for i in range(3)]
+        #                           for e in self.nfaces[2].masked_view]
+        #     print(self.nfaces[1].masked_view)
 
     @property
     def global_entities_per_dimension(self):
         return self._outer.entities_per_dimension
+
+    def split(self, predicate: Callable[[npt.NDArray],bool]):
+        d_sub = self.dim_submanifold
+
+        cond = np.array(
+            [all(map(predicate, self.nfaces[0].arr[cells]))
+             for cells in self.nfaces[d_sub].arr]
+        )
+        ma_1 = np.logical_or(self.nfaces[d_sub].mask, ~cond)
+        ma_2 = np.logical_or(self.nfaces[d_sub].mask, cond)
+
+        m_1 = SubSimplexMesh(outer=self._outer,
+                             cells=self.nfaces[d_sub].halfdeepcopy(ma_1))
+        m_2 = SubSimplexMesh(outer=self._outer,
+                             cells=self.nfaces[d_sub].halfdeepcopy(ma_2))
+        return m_1, m_2
