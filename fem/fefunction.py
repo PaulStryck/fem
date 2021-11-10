@@ -1,15 +1,14 @@
 import numpy as np
+from matplotlib import pyplot as plt
 from matplotlib.cm import ScalarMappable, get_cmap
 from matplotlib.colors import Normalize
-from scipy.sparse import bmat, coo_matrix
-
-from matplotlib import pyplot as plt
 from matplotlib.tri import Triangulation
 from mpl_toolkits.mplot3d import Axes3D
+from scipy.sparse import bmat, coo_matrix
 
 from fem.finite_elements import PElement
 from fem.function_space import FEFunctionSpace
-from fem.reference_elements import referenceTriangle, referenceInterval
+from fem.reference_elements import referenceInterval, referenceTriangle
 
 
 class FEFunction():
@@ -85,10 +84,13 @@ class FEFunction():
         n_ts = len(cells)
 
         for c in range(fs._mesh.entities_per_dimension[-1]):
-            vertex_coords = fs._mesh.nfaces[0][c_fs.mapping[c, :], :]
+            vertex_coords = fs._mesh.nfaces[0].arr[c_fs.mapping[c, :], :]
             x = np.dot(c_eval, vertex_coords)
 
-            local_function_coefs = self.coefficients[fs.mapping[c,:]]
+            # TODO: fs.mapping contains global node numbers. Need local ones
+            local_function_coefs = np.array([self._embedded_coefficients[k]
+                                             for k in fs.mapping[c,:]])
+            # local_function_coefs = self.coefficients[fs.mapping[c,:]]
             val = np.dot(f_eval, local_function_coefs)
 
             xs[:,c*n_bpts:(c+1)*n_bpts] = x.T

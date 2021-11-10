@@ -1,7 +1,7 @@
+from argparse import ArgumentParser
+
 import matplotlib.pyplot as plt
 import numpy as np
-
-from argparse import ArgumentParser
 
 from fem.mesh import SimplexMesh
 
@@ -17,14 +17,14 @@ def plot_mesh(m, labels):
 
     colors = ['black', 'red', 'blue']
 
-    for i, e in enumerate(m.nfaces[1]):
+    for i, e in enumerate(m.nfaces[1].arr):
         # plot all edges
         # plt.plot(m.nfaces[0][e, 0], m.nfaces[0][e, 1], m.nfaces[0][e, 2])
-        plt.plot(*(m.nfaces[0][e].T), 'k')
+        plt.plot(*(m.nfaces[0].arr[e].T), 'k')
 
     if labels:
         # annotate points
-        for i, x in enumerate(m.nfaces[0]):
+        for i, x in enumerate(m.nfaces[0].arr):
             ax.annotate('(%s, %s)' % (0, i), xy=x, xytext=(3, 1),
                         textcoords='offset points', color=colors[0])
 
@@ -32,7 +32,7 @@ def plot_mesh(m, labels):
         for d in range(1, m.dim_submanifold+1):
             adj = m.adjacency(d, 0)
             for i, e in enumerate(adj):
-                x = np.mean(m.nfaces[0][e, :], axis=0)
+                x = np.mean(m.nfaces[0].arr[e, :], axis=0)
                 ax.annotate('(%s, %s)' % (d, i), xy=x, xytext=(0, 1),
                             textcoords='offset points', color=colors[d])
 

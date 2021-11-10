@@ -22,6 +22,9 @@ class FEFunctionSpace():
 
         # Local -> Global node numbering lookup table
         # self._mapping[cell][loc] -> global node id
+        # if this is a FEFunctionSpace on a SubSimplexMesh:
+        #   cell: global on SubSimplexMesh
+        #   global node id: global on SimplexMesh
         n = self._mesh.element.dim
         self._mapping = np.zeros((self._mesh.entities_per_dimension[n], self._element.dim),
                                  dtype=np.uint)
@@ -29,40 +32,24 @@ class FEFunctionSpace():
         # Generate the local -> global node numbering lookup table
         c = self._mesh.element.dim
         # TODO: adjust iterator
-        for i in range(len(self._mesh.nfaces[c])):
-        # for i in self._mesh.nface_indices:
-            for d in self._element.local_nodes:
+        # if this is a space on a submesh, i does not match
+        for i in range(self._mesh.entities_per_dimension[c]):
+            for d in self._element.local_nodes:  # d = dimension of entity
                 N_d = self._element.nodes_per_entity[d]
                 for e in self._element.local_nodes[d]:
-                    loc = self._element.local_nodes[d][e]
+                    loc = self._element.local_nodes[d][e]  # local entity number
+
+                    # adjecent elements in global numbering
+                    # global on SimplexMesh when using a SubSimbplexMesh
+                    # whereas i is global on SubSimplexMesh
                     adj = self._mesh.adjacency(c, d)[i][e]
                     direction = 1
                     if type(adj) is tuple:
                         direction, adj = adj
 
-                    g = self.__global(d, self._mesh.entity_numbering[d][adj])
+                    g = self.__global(d, adj)
+                    # g = self.__global(d, self._mesh.entity_numbering[d][adj])
                     self._mapping[i,loc] = np.arange(g, g+N_d, dtype=np.uint)[::direction]
-
-                    _g = self.__global(d, adj)
-                    if self._dim < _g+N_d:
-                        self._dim = _g+N_d
-
-        # Compute list of boundary node indices
-        # TODO: Create recursive version for readability
-        bound_nodes = []
-        bs = self.mesh.boundary_cells
-        for d in range(self._mesh.element.dim, 0, -1):
-            # use d - 1
-            for b in bs.flatten():
-                N_d = self._element.nodes_per_entity[d-1]
-                g = self.__global(d-1,b)
-                bound_nodes.append(np.arange(g, g+N_d, dtype=np.uint))
-            if d > 1:
-                bs = self.mesh.adjacency(d-1,d-2)[bs]
-
-        self._boundary_nodes = []
-        if len(bound_nodes) > 0:
-            self._boundary_nodes = np.unique(np.concatenate(bound_nodes))
 
 
     def glob(self, d, i):
@@ -71,13 +58,10 @@ class FEFunctionSpace():
 
     def __global(self, d, i):
         npe = self._element.nodes_per_entity
-        epm = self._mesh.entities_per_dimension
+        epm = self._mesh.global_entities_per_dimension  # TODO: this must be outer mesh specific
 
         return int(np.dot(npe[:d], epm[:d]) + i*npe[d])
 
-    @property
-    def boundary_nodes(self):
-        return self._boundary_nodes
 
     @property
     def mapping(self):
@@ -106,7 +90,10 @@ class FEFunctionSpace():
         '''
         n = self._mesh.element.dim
         for i, e in enumerate(self._mesh.adjacency(n, 0)):
-            yield self.mesh.nfaces[0][e], self.mapping[i]
+            if np.any(self.mesh.nfaces[0].mask[e]):
+                raise ValueError("Acessing Illegal Point")
+
+            yield self.mesh.nfaces[0].arr[e], self.mapping[i]
 
 
     @property

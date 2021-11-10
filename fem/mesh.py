@@ -1,9 +1,39 @@
 from itertools import combinations
+from typing import Optional, Union
 
 import numpy as np
+import numpy.typing as npt
 from scipy.spatial import Delaunay
 
-from fem.reference_elements import referenceTriangle, referenceInterval
+from fem.reference_elements import Cell, referenceInterval, referenceTriangle
+
+
+class MaskedList():
+    def __init__(self,
+                 arr: npt.NDArray,
+                 mask: Optional[npt.NDArray[np.bool_]] = None):
+        if mask is None:
+            self._mask = np.array([False]*arr.shape[0], dtype=np.bool_)
+        else:
+            self._mask = mask
+
+        self._arr = arr
+
+        if self.arr.shape[0] != self.mask.shape[0]:
+            raise ValueError("Mask length must match arr length")
+
+    @property
+    def masked_view(self):
+        return self._arr[~self.mask].view()
+
+    @property
+    def arr(self):
+        return self._arr.view()
+
+    @property
+    def mask(self):
+        return self._mask.view()
+
 
 
 class SimplexMesh:
@@ -95,7 +125,10 @@ class SimplexMesh:
         return cls(vertices, faces, referenceInterval)
 
 
-    def __init__(self, vertices, cells, element):
+    def __init__(self,
+                 _v: Union[MaskedList, npt.ArrayLike],
+                 _c: Union[MaskedList, npt.ArrayLike],
+                 element : Cell):
         '''
         :param vertices: list of vertices in n dimensional space.
                          Must be a numpy ndarray of shape (k,n). Where k is the
@@ -134,9 +167,11 @@ class SimplexMesh:
         Only 0D and 1D numbering is needed. This is contained in :param
         vertices: and :param elements:
         '''
+        vertices = _v if type(_v) is MaskedList else MaskedList(np.array(_v))
+        cells    = _c if type(_c) is MaskedList else MaskedList(np.array(_c))
 
         # dimension of vertex coordinate vectores
-        self.dim             = vertices.shape[1]
+        self.dim             = vertices.arr.shape[1]
 
         # dimension of the mesh
         self.dim_submanifold = element.dim
@@ -170,18 +205,15 @@ class SimplexMesh:
         for n in range(1, self.dim_submanifold):
             # create global edge numbering, where the global direction is always
             # low to high
-            _edges = np.array(list(set(tuple(sorted(e))
-                                       for t in cells
-                                       for e in combinations(t, 2))))
-            self.nfaces[n] = _edges
+            _edges = list(set(tuple(sorted(e))
+                              for t in cells.arr
+                              for e in combinations(t, 2)))
+            self.nfaces[n] = MaskedList(np.array(_edges))
 
         self.nfaces[self.dim_submanifold] = cells
 
-        self.entity_numbering = dict([(i, list(range(len(self.nfaces[i]))))
-                                      for i in self.nfaces.keys()])
-
         self._entities_per_dimension = np.array(
-            [self.nfaces[n].shape[0] for n in sorted(self.nfaces)]
+            [self.nfaces[n].masked_view.shape[0] for n in sorted(self.nfaces)]
         )
 
         if self.dim_submanifold == 2:
@@ -201,18 +233,18 @@ class SimplexMesh:
             # _edge_lookup: Edge -> (Direction, GlobalEdgeID)
             # Where Edge \in (VertexID, VertexID)
             _edge_lookup = {tuple(e): (d, i)
-                            for i, e_ in enumerate(self.nfaces[1])
+                            for i, e_ in enumerate(self.nfaces[1].arr)
                             for d, e in ((1, e_), (-1, reversed(e_)))}
 
             self._klookup[1][2] = [[_edge_lookup[(e[i], e[(i+1)%3])]
                                    for i in range(3)]
-                                  for e in self.nfaces[2]]
+                                  for e in self.nfaces[2].arr]
 
         # The boundary is the list of all (self.dim_submanifold - 1)-entities
         # that are adjacent to exactly one (self.dim_submanifold)-entity
         _adjacency_count = np.repeat(
             2,
-            self.nfaces[self.dim_submanifold-1].shape[0]
+            self.nfaces[self.dim_submanifold-1].arr.shape[0]
         )
 
         d_sub = self.dim_submanifold
@@ -220,28 +252,28 @@ class SimplexMesh:
             for e in es:
                 if type(e) is tuple:
                     _, e = e
+
                 _adjacency_count[e] -= 1
 
-        self._boundary_cells = np.where(_adjacency_count == 1)[0]
+        _adjacency_count[self.nfaces[d_sub-1].mask.nonzero()] = 0
+
+        self._interior_facets = np.where(_adjacency_count == 0)[0]
         self._boundary_mesh = None
 
-        if len(self.boundary_cells) > 0:
-            d = self.dim_submanifold
-            boundary_cells = self.adjacency(d-1,0)[self.boundary_cells]
+        n_facets = self.nfaces[d_sub-1].masked_view.shape[0]
+        n_interior_facets = self._interior_facets.shape[0]
+
+        if (n_facets - n_interior_facets) > 0:
+            masked_cells = MaskedList(self.nfaces[d_sub-1].arr.view())
+            masked_cells.mask[self._interior_facets] = True
 
             self._boundary_mesh = SubSimplexMesh(outer=self,
-                                                 cells=boundary_cells,
-                                                 n_lookup=self.boundary_cells)
+                                                 cells=masked_cells)
 
 
     @property
     def element(self):
         return self._element
-
-
-    @property
-    def boundary_cells(self):
-        return self._boundary_cells
 
     @property
     def boundary_mesh(self):
@@ -250,6 +282,10 @@ class SimplexMesh:
 
     @property
     def entities_per_dimension(self):
+        return self._entities_per_dimension
+
+    @property
+    def global_entities_per_dimension(self):
         return self._entities_per_dimension
 
 
@@ -273,13 +309,15 @@ class SimplexMesh:
             raise NotImplementedError()
 
         if d1 == d2:
-            l = len(self.nfaces[d1])
-            return np.arange(l).reshape(l,-1)
+            l = len(self.nfaces[d1].arr)
+            mask = self.nfaces[d1].mask
+            return np.arange(l)[~mask].reshape(-1,1)
+            # return np.arange(l).reshape(-1,1)
 
         # from here d2 < d1, both positive and d1 meaningful
 
         if d2 == 0:
-            return self.nfaces[d1]
+            return self.nfaces[d1].masked_view
 
         return self._klookup[d2][d1]
 
@@ -288,13 +326,21 @@ class SimplexMesh:
     # list of all connected boundaaies of the submanifold.
 
 class SubSimplexMesh(SimplexMesh):
-    def __init__(self, outer: SimplexMesh, cells, n_lookup):
-        SimplexMesh.__init__(self,
-                             vertices=outer.nfaces[0],
-                             cells=cells,
-                             element=outer.element.lower_element)
+    def __init__(self, outer: SimplexMesh, cells: MaskedList):
+        # all vertices initially masked
+        vertices = MaskedList(outer.nfaces[0].arr,
+                              np.array([True]*outer.nfaces[0].arr.shape[0]))
 
-        # TODO: Build lookup table for outer numbering
-        # Vertex numbering stays the same
-        # Highest dimensional numbering table is known
-        self.entity_numbering[self.dim_submanifold] = n_lookup
+        # unmask all needed vertices
+        for c in cells.masked_view:
+            vertices.mask[c] = False
+
+        SimplexMesh.__init__(self,
+                             _v=vertices,
+                             _c=cells,
+                             element=outer.element.lower_element)
+        self._outer = outer
+
+    @property
+    def global_entities_per_dimension(self):
+        return self._outer.entities_per_dimension
