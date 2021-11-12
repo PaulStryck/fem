@@ -1,8 +1,14 @@
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy.sparse import bmat, coo_matrix
-from scipy.sparse.linalg import spsolve
+from typing import Callable, Optional, Tuple
 
+import numpy as np
+import numpy.typing as npt
+import sympy
+from scipy.sparse import bmat
+from scipy.sparse.coo import coo_matrix
+from scipy.sparse.linalg.dsolve.linsolve import spsolve
+
+from fem.boundary_conditions import (asm_dirichlet_boundary,
+                                     asm_neumann_boundary)
 from fem.error import error
 from fem.fefunction import FEFunction
 from fem.finite_elements import PElement
@@ -10,151 +16,135 @@ from fem.function_space import FEFunctionSpace
 from fem.integration import gauss_legendre_quadrature
 from fem.mesh import SimplexMesh
 
-
-def asm(fs, f):
-    '''
-    Asseble system matrix of weak formulation for
-    -∆u = f
-    '''
-    n = 0
-    numDataPts = fs.mesh.entities_per_dimension[-1] * fs.element.dim**2
-    _i = np.empty(numDataPts, dtype=int)
-    _j = np.empty(numDataPts, dtype=int)
-
-    _data_s = np.empty(numDataPts, dtype=np.double)
-    _data_m = np.empty(numDataPts, dtype=np.double)
-
-    quadrature = gauss_legendre_quadrature(fs.element.cell.dim, fs.element.dim)
-
-    # dPhi \in \R^(q,n,p), where:
-    #       n: is the dimension of the polynomial space
-    #       q: is the number of quadrature points
-    #       p: is the dimension of element. (dimension of the range of
-    #       \nabla phi)
-    dPhi = fs.element.grad_phi_eval(quadrature.points)
-    Phi  = fs.element.phi_eval(quadrature.points)
-
-    for e, ind in fs.elements:
-        # e, ind = (x_1, ..., x_n), (i(x_1), ... i(x_n))
-        detj, jTinv = fs.element.cell.affine_transform_jacobian(e)
-
-        # transform each gradient with jTinv
-        G = dPhi @ jTinv.T
-
-        # compute local stiffness
-        localStiffness = np.tensordot(quadrature.weights,
-                                      G@G.swapaxes(1,2),
-                                      axes=1) * detj
-
-        # compute local mass
-        localMass = Phi.T @ (np.multiply(quadrature.weights, Phi.T).T) * detj
-
-        # map localStiffness to global stifness
-        for k,l in np.ndindex(*localStiffness.shape):
-            _i[n] = ind[k]
-            _j[n] = ind[l]
-
-            _data_s[n] = localStiffness[k,l]
-            _data_m[n] = localMass[k,l]
-            n += 1
-
-    # compute projection of RHS
-    _f = FEFunction(fs)
-    _f.interpolate(f)
-
-    mass      = coo_matrix((_data_m, (_i, _j)))
-    stiffness = coo_matrix((_data_s, (_i, _j)))
-    return stiffness, mass@_f.coefficients
+BoundaryCondition = Tuple[Callable, FEFunctionSpace]
 
 
-def poisson(m: SimplexMesh, f, g, order=1):
-    # Create Finite Dim function space
-    fe = PElement(order, m.element)
-    fs = FEFunctionSpace(m, fe)
+def poisson(fs: FEFunctionSpace,
+            f: FEFunction,
+            db: BoundaryCondition,
+            nb: BoundaryCondition = None):
+    L, M = fs.asm_stiff_mass()
 
-    # Create finite dim subspace on boundary
-    b_fe = PElement(order, m.boundary_mesh.element)
-    b_fs = FEFunctionSpace(m.boundary_mesh, b_fe)
+    R, _, db_repr = asm_dirichlet_boundary(db, fs.dim)
 
-    # project function to boundary
-    b_f = FEFunction(b_fs)
-    b_f.interpolate(g)
+    nb_repr = asm_neumann_boundary(nb) if nb is not None else np.zeros(fs.dim)
 
-    # FEFunctionSpace should be aware of BCs?!
-    # FEFunctionSpace is part of the co-chain complex, thus should exhibit a
-    # boundary operator
+    f_int = M@f.coefficients
+    sys = bmat([[L, R], [R.T, None]], format='csr')
 
-    A, b = asm(fs, f)
-
-    # TODO: non-zero Neumann BC must be taken into account here
-    n = fs.dim
-    # l = b_fs.dim  TODO: Fix FS dimension calculation
-    l = len(b_f.embedded_coeffs_indices)
-    R = coo_matrix(
-        (np.ones(l), (b_f.embedded_coeffs_indices, np.arange(l))),
-        shape=(n, l)
-    )
-
-    # assemble complete system matrix with enforced dirichlet conditions on
-    # boundary with R
-    # [[A   R]
-    #  [R^t 0]]
-    sys = bmat([[A, R], [R.transpose(), None]], format='csr')
-
-    # assemble rhs of complete system. First n*n entries are the
-    # actual right hand side. It follows the enforced dirichlet condition
-    rhs = np.concatenate((b, b_f.embedded_coeffs_values))
+    rhs = np.concatenate((f_int + nb_repr, db_repr))
     x = spsolve(sys, rhs)
-    _f = FEFunction(fs)
-    _f.coefficients = x[:fs.dim]
 
-    return _f
+    solution = FEFunction(fs)
+    solution.coefficients = x[:fs.dim]
 
+    return solution
 
 if __name__ == '__main__':
     np.set_printoptions(precision=2, linewidth=178)
+    np.seterr(divide='ignore', invalid='ignore')
+    # a = 10
+    # # RHS
+    # def f(_x: npt.NDArray):
+    #     x = _x[0]
+    #     y = _x[1]
+    #     s = 16**a
+    #     s *= a*(-(x-1)*x)**(a - 2)
+    #     s *= (-(y - 1)*y)**(a - 2)
+    #     s *= (x**4 * (a*(1 - 2*y)**2 - 2*y**2 + 2*y - 1)
+    #           - 2*x**3 * (a*(1 - 2*y)**2 - 2*y**2 + 2*y - 1)
+    #           + x**2 * (a * (2*y**2 - 2*y + 1)**2 -
+    #                     2*y**4 + 4*y**3 - 4*y**2 + 2*y - 1)
+    #           - 2*(2*a - 1)*x*(y - 1)**2*y**2 + (a - 1)*(y - 1)**2*y**2)
+    #     return -s
 
-    # RHS
-    f = lambda x: - 2*(x[0]**2 - x[0] + (x[1] - 1)*x[1])
+    # def s(_x):
+    #     x = _x[0]
+    #     y = _x[1]
+    #     s = 2**(4*a)
+    #     s *= x**a
+    #     s *= (1 - x)**a
+    #     s *= y**a
+    #     s *= (1 - y)**a
+    #     return s
 
-    # Dirichlet Boundary
-    g = lambda _: 0
+    # a = 0.6
+    # def f(x):
+    #     if(x[0] == 0): return 10e8
 
-    # Actual solution
-    s = lambda x: (1-x[0]) * x[0] * (1-x[1]) * x[1]
+    #     return (a - 1)*a*x[0]**(a - 2)
 
-    # Gradient of actual solution
-    gs = lambda x: np.array([(2*x[0]-1)*(x[1]-1)*x[1], (2*x[1]-1)*(x[0]-1)*x[0]])
+    # s = lambda x: x[0]**a
 
-    errors = {1: ([],([],[])),
-              2: ([],([],[])),
-              3: ([],([],[]))}
+    a = 50
+    xc = np.array([-0.05,-0.05])
+    r0 = 0.7
+    x, y = sympy.symbols('x y')
+    expr = sympy.atan(a*(sympy.sqrt((x-xc[0])**2+(y-xc[1])**2) - r0))
 
-    for d in [1,2,3]:
-        for n in range(2,31,2):
-            # m = SimplexMesh.Create_2d_unit_square_unstructured(n)
-            m = SimplexMesh.Create_2d_unit_square_structured(n)
-            # m = SimplexMesh.Create_1d_unit_interval_structured(n)
-            # m = SimplexMesh.Create_2d_manifold(n)
-            u = poisson(m, f, g, d)
+    dxx = sympy.diff(expr, x, x)
+    dyy = sympy.diff(expr, y, y)
 
-            e_l2 = error(s, u, lambda x,y: np.abs(x-y)**2)
-            e_h1 = error(gs, u, lambda x,y: np.dot(x-y,x-y), grad=True)
+    f_dxx = sympy.lambdify((x,y), dxx)
+    f_dyy = sympy.lambdify((x,y), dyy)
 
-            print("n: {}, L2 error = {}".format(n, e_l2**.5))
-            print("n: {}, H1 error = {}".format(n, e_h1**.5))
-            print()
-            errors[d][0].append(n)
-            errors[d][1][0].append(e_l2**.5)
-            errors[d][1][1].append(e_l2**0.5 + e_h1**.5)
+    def f(_x):
+        x = _x[0]
+        y = _x[1]
+        fx = f_dxx(x,y)
+        fy = f_dyy(x,y)
 
-    fig = plt.figure()
-    ax1 = fig.add_subplot(1,2,1)
-    ax2 = fig.add_subplot(1,2,2)
-    colors = ['black', 'red', 'green']
-    for c, (x,(y_1, y_2)) in zip(colors, errors.values()):
-        ax1.loglog(x,y_1, c)
-        ax2.loglog(x,y_2, c)
+        if np.isnan(fx):
+            fx = 0
 
-    # print(errors)
-    plt.show()
+        if np.isnan(fy):
+            fy = 0
+
+        return -(fx+fy)
+
+    # def f(_x):
+    #     x = _x[0]
+    #     y = _x[1]
+    #     r = np.linalg.norm(_x-xc)
+    #     g = a*(r-r0)
+    #     gx = a*(x-xc[0])/r
+    #     gxx = (a*r - a*(x-xc[0])**2)/(r**3)
+    #     gy = a*(y-xc[1])/r
+    #     gyy = (a*r - a*(y-xc[1])**2)/(r**3)
+
+    #     sxx = (gxx*(g**2+1) - 2*g*(gx**2)) / ((gxx**2+1)**2)
+    #     syy = (gyy*(g**2+1) - 2*g*(gy**2)) / ((gyy**2+1)**2)
+    #     return sxx+syy
+
+    s = lambda x: np.arctan(a * (np.linalg.norm(x - xc)-r0))
+
+
+    ns = range(5, 65+1, 5)
+    ns = [20]
+    d = 3
+    # for n in range(2,30,2):
+    for n in ns:
+        m = SimplexMesh.Create_2d_unit_square_structured(n)
+
+        fs = FEFunctionSpace(m, PElement(d, m.element))
+        f_interp = FEFunction(fs)
+        f_interp.interpolate(f)
+
+        db_fs = FEFunctionSpace(m.boundary_mesh,
+                                PElement(d, m.element.lower_element))
+
+        u = poisson(
+            fs,
+            f_interp,
+            (s, db_fs)
+        )
+
+        e_l2 = error(s, u, lambda x,y: np.abs(x-y)**2)**0.5
+        print(e_l2)
+        # plot_mesh(m, True)
+
+        sol = FEFunction(fs)
+        sol.interpolate(f)
+        sol.plot(1)
+        # u.plot(1)
+
