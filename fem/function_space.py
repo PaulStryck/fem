@@ -1,6 +1,8 @@
 import numpy as np
+from scipy.sparse.coo import coo_matrix
 
 from fem.finite_elements import PElement
+from fem.integration import gauss_legendre_quadrature
 from fem.reference_elements import referenceTriangle
 
 # TODO: Maybe a FEFunctionSubSpace with SubMesh with sparse matrix
@@ -77,6 +79,62 @@ class FEFunctionSpace():
 
     def boundaryProjection(self):
         raise NotImplementedError()
+
+
+    def asm_stiff_mass(self, stiff: bool = True, mass: bool = True):
+        n = 0
+        numDataPts = self.mesh.entities_per_dimension[-1] * self.element.dim**2
+        _i = np.empty(numDataPts, dtype=int)
+        _j = np.empty(numDataPts, dtype=int)
+
+        _data_s = np.empty(numDataPts, dtype=np.double) if stiff else None
+        _data_m = np.empty(numDataPts, dtype=np.double) if mass else None
+
+        quadrature = gauss_legendre_quadrature(self.element.cell.dim,
+                                               self.element.dim)
+
+        # dPhi \in \R^(q,n,p), where:
+        #       n: is the dimension of the polynomial space
+        #       q: is the number of quadrature points
+        #       p: is the dimension of element. (dimension of the range of
+        #       \nabla phi)
+        dPhi = self.element.grad_phi_eval(quadrature.points) if stiff else None
+        Phi  = self.element.phi_eval(quadrature.points) if mass else None
+
+        for e, ind in self.elements:
+            # e, ind = (x_1, ..., x_n), (i(x_1), ... i(x_n))
+            detj, jTinv = self.element.cell.affine_transform_jacobian(e)
+
+            if stiff:
+                # transform each gradient with jTinv
+                G = dPhi @ jTinv.T
+
+                # compute local stiffness
+                localStiffness = np.tensordot(quadrature.weights,
+                                              G@G.swapaxes(1,2),
+                                              axes=1) * detj
+
+            # compute local mass
+            if mass:
+                localMass = Phi.T @ (np.multiply(quadrature.weights, Phi.T).T) * detj
+
+            # map localStiffness to global stifness
+            for k,l in np.ndindex(self.element.dim, self.element.dim):
+                _i[n] = ind[k]
+                _j[n] = ind[l]
+
+                if stiff:
+                    _data_s[n] = localStiffness[k,l]
+
+                if mass:
+                    _data_m[n] = localMass[k,l]
+                n += 1
+
+
+        stiff_matrix = coo_matrix((_data_s, (_i, _j))).tocsr() if stiff else None
+        mass_matrix  = coo_matrix((_data_m, (_i, _j))).tocsr() if mass  else None
+
+        return stiff_matrix, mass_matrix
 
     @property
     def elements(self):
