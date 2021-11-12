@@ -45,9 +45,14 @@ class Interval(Cell):
         return lambda x: (e[1]-e[0]) * x + e[0]
 
     def affine_transform_jacobian(self, e):
-        j = e[1] - e[0]
+        jt = e[1] - e[0]
 
-        return j, 1/j
+        if len(jt) == 1:
+            detj = jt
+        else:
+            detj = np.dot(jt,jt)**0.5
+
+        return np.array([[detj]]), np.array([[1/detj]])
 
 
 class Triangle(Cell):
