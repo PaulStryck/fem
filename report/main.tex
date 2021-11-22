@@ -31,6 +31,7 @@
 % \headheight 0in
 
 
+\newtheorem{theorem}{Theorem}[section]
 
 \definecolor{codegreen}{rgb}{0,0.6,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}
@@ -76,6 +77,7 @@
 \begin{multicols}{2}
   \begin{flushleft}
     MAT360 \\
+    Autumn 2021\\
     Prof. Jan Martin Nordbotten\\
     \underline{University of Bergen}
   \end{flushleft}
@@ -98,16 +100,271 @@ Paul Stryck\\
 \begin{abstract}
     \noindent
     This report is meant to outline the thought process behind the implementation of an exemplary fem code,
-    solving the Laplace equation on the unit square with both Dirichlet and von Neumann boundary conditions.
+    solving the Laplace equation on the unit square with both Dirichlet and Neumann boundary conditions.
     The implementation will work with structured and unstructured grids, which are generated on the unit square.
     It is then extended to process grids on arbitrary 2d geometries in the {\it .msh} file format from {\it gmsh}.
     The convergence rates will be numerically obtained for structured and unstructured grids on the unit square
     for example problems where the analytical solution is known.
 \end{abstract}
 
+\subsection*{Continuous Problem}
+The PDE under consideration is the homogenious Poisson equation:
+\begin{equation} \label{eq:poisson}
+  \begin{split}
+    - \Delta u &= f \quad \text{on } \Omega\\
+    u &= 0 \quad \text{on } \partial\Omega
+  \end{split}
+\end{equation}
+Where $\Omega \subset \mathbb{R}^n$ is an open and bounded set and $f \in L^2(\Omega)$.
+A classical solution $u \in C^2(\Omega) \cap C^1(\bar{\Omega})$, will at most
+exist if $f$ is at least continuous and restrictive assumptions regarding $\Omega$ have to be made.
+Thus, a less restrictive formulation of the Problem \ref{eq:poisson} based on
+the variational formulation will be derived.\\
+
+Assuming $u \in C^2(\Omega) \cap C^1(\bar{\Omega})$ is a classical solution to
+\ref{eq:poisson}. This implies $u \in H^1_0(\Omega)$.
+Multiplying \ref{eq:poisson} with test functions $v \in C^\infty_0(\Omega)$ and
+integrating over $\Omega$ yields:
+
+\begin{equation} \label{eq:poisson_var}
+  - \int_\Omega \Delta u v\,dV = \int_\Omega fv\,dV \quad \forall v \in C^\infty_0(\Omega)
+\end{equation}
+
+If $\Omega$ has a Lipschitz boundary, \ref{eq:poisson_var} can be simplified
+using Green's first identity.
+\begin{equation}\label{eq:poisson_var_greens}
+    \int_\Omega \nabla u \cdot \nabla v \,dV
+  - \int_{\partial\Omega} v \frac{\partial u}{\partial n} \,dS
+  = \int_\Omega fv\,dV \quad \forall v \in C^\infty_0(\Omega)
+\end{equation}
+
+Where the boundary integral vanishes since $v = 0$ on $\partial\Omega$.
+Additionally, $C^\infty_0(\Omega)$ is dense in $H^1_0(\Omega)$.
+So \ref{eq:poisson_var_greens} can be further simplified to:
+\begin{equation} \label{eq:poisson_weak}
+  \underbrace{\int_\Omega \nabla u \cdot \nabla v \,dV}_{\eqqcolon a(u,v)}
+  = \underbrace{\int_\Omega fv\,dV \quad \forall v \in
+  H^1_0(\Omega)}_{\eqqcolon b(v) = \langle b, v \rangle_{H^{-1}_0, H^1_0}}
+\end{equation}
+A function $u \in H^1_0(\Omega)$ satisfying \ref{eq:poisson_weak} is called
+weak solution of \ref{eq:poisson}.\\
+Existence and uniqueness of a solution to \ref{eq:poisson_weak} is given by
+reformulating \ref{eq:poisson_weak} to $a(u,v) = \langle b,v \rangle_{H^{-1}_0, H^1_0}$
+and application of Lax-Milgram. The proof is omitted here.
+
+\subsection*{Boundary Conditions}
+It remains to investigate under which conditions the continuous problem can be
+extended by Dirichlet and Neumann boundary conditions, and still admit a unique
+solution. First, considering Dirichlet boundary conditions, the problem is given by:
+\begin{equation} \label{eq:poisson_dirichlet}
+  \begin{split}
+    -\Delta u &= f  \text{ in } \Omega\\
+    u &= g \text{ on } \partial\Omega
+  \end{split}
+\end{equation}
+with $f \in L^2(\Omega)$ and $g \in L^2(\partial\Omega)$.\\
+Additionally, define the sets spaces:
+\begin{equation*}
+  \begin{split}
+    H^1_0 &= \left\{ v \in H^1(\Omega)\, :\, v\vert_{\partial\Omega} = 0 \text{ a.e. on } \partial\Omega\right\}\\
+    H^1_g &= \left\{ v \in H^1(\Omega)\, :\, v\vert_{\partial\Omega} = g \text{ a.e. on } \partial\Omega\right\}
+  \end{split}
+\end{equation*}
+Which are well-defined for all $g \in L^2(\partial\Omega)$ by the trace
+theorem. $H^1_0$ is indeed a Hilbert space, whereas $H^1_g$ is not since it is
+not closed under addition.
+
+Define the bilinear form $a$ and linear functional $b$ as before:
+\begin{equation*}
+  \begin{split}
+    a(u,v) &= \int_\Omega \nabla u \cdot \nabla v \,dx\\
+    b(v)   &= \int_\Omega fv\,dx
+  \end{split}
+\end{equation*}
+
+Now choose an arbitrary $\hat{g}\in H^1_g$ and solve:
+\begin{equation*}
+  a(\hat{u},v) = b(v) - a(\hat{g},v) \quad \forall v \in H^1_0
+\end{equation*}
+Where the existence of a unique solution $\hat{u}$ is guaranteed by Lax-Milgram.
+
+The weak solution to \ref{eq:poisson_dirichlet} is obtained by:
+$$u = \hat{u} + \hat{g} \in H^1_g$$
+
+\subsubsection*{Neumann Boundary Conditions}
+To incorporate Neumann boundary conditions the boundary $\partial\Omega$ needs
+to be disjointly split into $\Gamma_0$ and $\Gamma_1$, such that
+$\Gamma_0 \cup \Gamma_1 = \partial\Omega$ and $\Gamma_0 \cap \Gamma_1 = \emptyset$.
+The poisson equation with mixed Neumann and homogenious Dirichlet boundary
+conditions can than be stated as:
+\begin{equation} \label{eq:poisson_neumann}
+  \begin{split}
+    -\Delta u &= f  \text{ in } \Omega \\
+    u &= 0 \text{ on } \Gamma_0 \\
+    \frac{\partial u}{\partial n} &= h \text{ on } \Gamma_1, \quad h\in L^2(\Gamma_1)
+  \end{split}
+\end{equation}
+
+The weak formulation of \ref{eq:poisson_neumann} is given by:
+\begin{equation}
+  \int_\Omega \nabla u \cdot \nabla v\,dx
+  = \int_\Omega fv\,dx + \int_{\Gamma_1}hv\,dx \quad
+  \forall v \in \left\{ v \in H^1(\Omega)\, :\, v\vert_{\Gamma_0} = 0 \text{ a.e. on } \Gamma_0\right\}\\
+\end{equation}
+
+By application of Lax-Milgram, it can be verified that \ref{eq:poisson_neumann}
+admits a unique, weak, solution if $\int_{\Gamma_0}1\,dx > 0$.
+In the case of pure Neumann conditions Lax-Milgram cannot be applied, since the
+bilinear form is no longer coercive. To extend this to the case of $u = g$ on
+$\Gamma_0$ for some $g \in L^2(\Gamma_0)$ the same idea used for pure Dirichlet
+boundary conditions can be used.
+
+
+\subsection*{Discretization}
+The goal of the Finite Element Method is to approximate used Hilbert spaces by
+finite dimensional subspaces. We will see that an approximation of $H^1(\Omega)$
+suffices for the previously stated Poisson equation with Dirichlet or mixed
+boundary conditions. For now, assume the problem in its general form:\\
+
+Find $u \in V$ such that:
+\begin{equation}
+  a(u,v) = l(v), \quad \forall v \in V
+\end{equation}
+
+Given some Hilbert space $\left(V, \lVert \cdot \rVert_V\right)$, a functional
+$l\in V'$ in the dual space of $V$ and a bilinear form $a: V \times V
+\rightarrow \mathbb{R}$ which satisfies for all $u,v\in V$:
+\begin{enumerate}
+  \item $|a(u,v)| \leq M \lVert u \rVert_V \cdot \lVert v \rVert_V, \quad M > 0$
+  \item $a(u,u) \geq \gamma \lVert u \rVert_V, \quad \gamma > 0$
+\end{enumerate}
+
+
+To construct a finite dimensional approximation of the above Hilbert space $V$
+a sequence of subspaces $(V_n)_{n\in\mathbb{N}} \subset V$ can be constructed with:
+$V_n = span(\Phi_1,\dotsb, \Phi_n)$ with some basis functions $\Phi_i$ and the
+desired property $\lim\limits_{n\to \infty} V_n = V$.
+The Lax-Milgram lemma now guarantees existence and uniqueness of a solution in
+the finite dimensional subspace:
+\begin{equation}
+  a(u_n, v_n) = l(v_n), \quad \forall v_n \in V_n
+\end{equation}
+
+Or equivalently:
+\begin{equation}
+  a(u_n, \Phi_i) = l(\Phi_i), \quad \forall 1 \le i \le n
+\end{equation}
+where $u_n = \sum^n_1 \hat{u}_i\Phi_i$. This can be restated in terms of a
+linear system:
+$$Ax=b$$
+where $A_{i,j} = a(\Phi_i, \Phi_j) \in \mathbb{R}^{n\times n}$,
+$x = \left(\hat{u}_1, \dotsb, \hat{u}_n\right) \in \mathbb{R}^n$ and
+$b = (l(\Phi_i), \dotsb, l(\Phi_n)) \in \mathbb{R}^n$.\\
+At this point it has not been shown that solutions in the sequence of finite
+dimensional subspaces will indeed converge to a solution in the infinite
+dimensional space $V$. This will be done later, when convergence rates are
+investigated. For now, assume that it indeed converges under reasonable
+assumptions.
+
+
+
+
 \begin{multicols}{2}
 
   \subsection*{Theory}
+    The PDE in consideration is the stereotypical Poisson equation:
+    \begin{equation}
+      % \label{eq:poisson}
+      - \nabla \cdot \left( \nabla u \right) = f \quad \text{on} \Omega
+    \end{equation}
+
+    Where solutions will be sought on the unit square $\Omega = \left[0,1\right]^2$.
+
+    In this strong from \ref{eq:poisson} requires strong assumptions on $f$ and $\Omega$.
+    In order to obtain a meaningful numerical method, these assumptions must be relaxed.
+    This is done by multiplying both sides of the equation by test functions and integrating over the domain $\Omega$.
+    For simplicity, assume $f = 0$ for now:
+    \begin{equation}
+      \label{eq:poisson_weak}
+      - \int_\Omega \nabla \cdot \left(\nabla u\right) v \,dx = \int_\Omega fv \,dx
+        \quad \forall v \in \mathcal{C}^\infty_0(\Omega)
+    \end{equation}
+
+    By applying Green's formula, it is obtained:
+    \begin{equation}
+      \int_\Omega \nabla u \cdot \nabla v \,dx - \int_\Gamma v \frac{\partial y}{\partial \nu} \,dS = \int_\Omega fv \,dx
+        \quad \forall v \in \mathcal{C}^\infty_0(\Omega)
+    \end{equation}
+
+    Which can be further simplified, because $v = 0$ on $\Gamma$.
+    Resulting in weak formulation of the Poisson problem with homogeneous Dirichlet boundary condition:
+    \begin{equation}
+      \underbrace{\int_\Omega \nabla u \cdot \nabla v \,dx}_{\coloneqq a(u,v)} = \underbrace{\int_\Omega fv \,dx}_{\coloneqq l(f)}
+        \quad \forall v \in \mathcal{C}^\infty_0(\Omega)
+    \end{equation}
+
+    Where $\mathcal{C}^\infty_0(\Omega)$ is the space of smooth test functions vanishing at the boundary.
+    As mentioned in the lecture, $\mathcal{C}^\infty_0(\Omega)$ is dense in $H^1_0(\Omega)$ w.r.t. the $H^1$ norm.
+    Since both sides of \ref{eq:poisson_weak} are continuous w.r.t. $v$, \ref{eq:poisson_weak} also holds for all $v \in H^1_0(\Omega)$.
+
+    Since, both, the above defined bilinear form $a$ is bounded and coercive, as well as $l \in H^{-1}_0$,
+    Lax-Milgram guarantees existence and uniqueness of a solution.
+
+    Lax-Milgram additionally guarantees that $u$ is the unique minimizer of
+    \begin{equation}
+      \min_{y \in H^1_0} \frac{1}{2}a(y,y) - l(y)
+    \end{equation}
+    This can later be used to implement boundary conditions.
+
+  \subsubsection*{Boundary Conditions}
+    \begin{theorem}
+     The Poisson equation with Dirichlet and Neumann boundary conditions:
+      \begin{align*}
+        -\nabla \cdot \left( \nabla u \right) &= f  \text{ in } \Omega\\
+        u &= g \text{ on } \Gamma_0\\
+        \frac{\partial u}{\partial \nu} &= h \text{ on } \Gamma_1
+      \end{align*}
+      with $f \in L^2(\Omega)$, $g \in L^2(\Gamma_0)$, $h \in L^2(\Gamma_1)$ and $\int_{\Gamma_0}\,dx > 0$.
+      Has a weak solution $u \in H^1(\Omega)$.
+
+      \begin{proof}
+        Obtain the weak formulation as usual:
+        \begin{equation*}
+          \label{eq:poisson_weak_boundaries}
+          \int_\Omega \nabla u \cdot \nabla v \,dx - \int_{\Gamma_0} v \frac{\partial u}{\partial \mu} \,dx =
+            \int_\Omega fv\,dx + \int_{\Gamma_1} vh\,dx
+        \end{equation*}
+
+        Furthermore define the Hilbert spaces:
+        \begin{align*}
+          V_0 &= \left\{ v \in H^1(\Omega)\, :\, v\vert_{\Gamma_0} = 0 \text{ a.e. on } \Gamma_0 \right\}\\
+          V_g &= \left\{ v \in H^1(\Omega)\, :\, v\vert_{\Gamma_0} = g \text{ a.e. on } \Gamma_0 \right\}
+        \end{align*}
+
+        And define the bilinear form $a$ and linear functional $l$ as follows:
+        \begin{align*}
+          a(u,v) &= \int_\Omega \nabla u \cdot \nabla v \,dx\\
+          l(v)   &= \int_{\Gamma_1} hv \,dx + \int_\Omega fv\,dx
+        \end{align*}
+
+        Lax-Milgram guarantees existence of a unique solution to:
+        \begin{equation*}
+          a(u,v) = l(v) \quad \forall v \in V_0
+        \end{equation*}
+        If $\int_{\Gamma_0}dx >0$
+
+        Now choose an arbitrary $\hat{g}\in V_g$ and solve:
+        \begin{equation*}
+          a(\hat{u},v) = l(v) - a(\hat{g},v) \quad \forall v \in V_0
+        \end{equation*}
+
+        The solution to \ref{eq:poisson_weak_boundaries} is obtained by:
+        $$u = \hat{u} + \hat{g} \in V_g$$
+
+      \end{proof}
+
+    \end{theorem}
+
   \subsection*{Grid Generation}
 
 \end{multicols}
