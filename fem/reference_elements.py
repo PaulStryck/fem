@@ -95,7 +95,7 @@ class Triangle(Cell):
 class Tetrahedron(Cell):
     def __init__(self, vertices, topology, lower_element):
         raise NotImplementedError()
-        Cell.__init__(self, vertices, topology, lower_element)
+        # Cell.__init__(self, vertices, topology, lower_element)
 
 '''
 Topology Data structure:
@@ -107,6 +107,7 @@ referenceInterval = Interval([[0],[1]],
                                   1: [1]},
                               1: {0: [0,1]}})
 
+# referenceTriangle = Triangle([[0,0], [1,0], [0.5, 0.5*3**(.5)]],
 referenceTriangle = Triangle([[0,0], [1,0], [0,1]],
                              {0: {0: [0],
                                   1: [1],
