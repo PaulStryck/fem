@@ -100,7 +100,7 @@ class FEFunction():
 
         # color values for each cell
         norm = Normalize()
-        colors = get_cmap('summer')(norm(values))
+        colors = get_cmap('viridis')(norm(values))
 
         if fs.mesh.dim == 2 and fs.mesh.dim_submanifold == 1:
             ax = plt.figure().add_subplot()
@@ -120,10 +120,95 @@ class FEFunction():
 
         plt.show()
 
+    def _plot_1d(self, ax, deg=None):
+        fs = self._fs
 
-        # set the face colors of the Poly3DCollection
-        p3dc.set_fc(colors)
+        local_coords = np.expand_dims(np.linspace(0, 1, deg), 1)
 
-        plt.show()
+        function_map = fs.element.phi_eval(local_coords)
+
+        # Interpolation rule for coordinates.
+        interp_fe = PElement(1, fs.mesh.element)
+        interp_fs = FEFunctionSpace(fs.mesh, interp_fe)
+        coord_map = interp_fe.phi_eval(local_coords)
+
+        for c in range(fs.mesh.entities_per_dimension[-1]):
+            vertex_coords = fs.mesh.nfaces[0].arr[interp_fs.mapping[c, :], :]
+            x = np.dot(coord_map, vertex_coords)
+
+            local_function_coefs = self.coefficients[fs.mapping[c, :]]
+            v = np.dot(function_map, local_function_coefs)
+
+            ax.plot(x[:, 0], v, 'k')
+
+        return ax
+
+    def _plot_2d(self, ax, deg=None, cmapinterval=(0,1)):
+        fs = self._fs
+
+        local_coords, triangles = self._lagrange_triangles(deg)
+
+        function_map = fs.element.phi_eval(local_coords)
+
+        # Interpolation rule for coordinates.
+        interp_fe   = PElement(1, fs.mesh.element)
+        interp_fs   = FEFunctionSpace(fs.mesh, interp_fe)
+        interp_eval = interp_fe.phi_eval(local_coords)
 
 
+        for c in range(fs.mesh.entities_per_dimension[-1]):
+            vertex_coords = fs.mesh.nfaces[0].arr[interp_fs.mapping[c, :], :]
+            x = np.dot(interp_eval, vertex_coords)
+
+            local_function_coefs = self.coefficients[fs.mapping[c, :]]
+            v = np.dot(function_map, local_function_coefs)
+
+            values = np.empty(len(triangles))
+            for i,t in enumerate(triangles):
+                values[i] = v[t.astype(np.int32)].mean()
+
+            p3dc = ax.plot_trisurf(Triangulation(x[:, 0], x[:, 1], triangles),
+                                   v,
+                                   edgecolor='none',
+                                   linewidth=0.,
+                                   antialiased=False)
+            # color values for each cell
+            norm = Normalize(*cmapinterval)
+            colors = get_cmap('viridis')(norm(values))
+            p3dc.set_fc(colors)
+
+        return ax
+
+    def plot(self, ax, deg = None, cmapinterval=(0,1)):
+        fs = self._fs
+
+        # render each element as d triangles
+        d = 2 * (fs.element.deg + 1) if fs.element.deg > 1 else 2
+        d = d if deg is None else deg
+
+        if fs.element.cell is referenceTriangle:
+            return self._plot_2d(ax, d, cmapinterval)
+        elif fs.element.cell is referenceInterval:
+            return self._plot_1d(ax, d)
+        else:
+            raise ValueError("Unknown reference cell: %s" % fs.element.cell)
+
+
+    @staticmethod
+    def _lagrange_triangles(degree):
+        # Triangles linking the Lagrange points.
+
+        return (np.array([[i / degree, j / degree]
+                          for j in range(degree + 1)
+                          for i in range(degree + 1 - j)]),
+                np.array(
+                    # Up triangles
+                    [np.add(np.sum(range(degree + 2 - j, degree + 2)),
+                            (i, i + 1, i + degree + 1 - j))
+                     for j in range(degree)
+                     for i in range(degree - j)]
+                    # Down triangles.
+                    + [np.add(np.sum(range(degree + 2 - j, degree + 2)),
+                              (i+1, i + degree + 1 - j + 1, i + degree + 1 - j))
+                       for j in range(degree - 1)
+                       for i in range(degree - 1 - j)]))
