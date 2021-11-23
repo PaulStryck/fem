@@ -1,13 +1,13 @@
 import numpy as np
 
-from fem.integration import gauss_legendre_quadrature
+from .integration import gauss_legendre_quadrature
 
 
 def error(u, v, f, grad=False):
     '''
     Compute ∫ f(u(x), v(x)) dx on Ω
-    :param v: must be a :class FEFunction: with domain Ω
     :param u: python function, range of u and v must be of the same dimension
+    :param v: must be a :class FEFunction: with domain Ω
     :param f: python function taking two arguments mapping to 1D
     '''
 
