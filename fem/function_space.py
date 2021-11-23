@@ -1,9 +1,9 @@
 import numpy as np
 from scipy.sparse.coo import coo_matrix
 
-from fem.finite_elements import PElement
-from fem.integration import gauss_legendre_quadrature
-from fem.reference_elements import referenceTriangle
+from .finite_elements import PElement
+from .integration import gauss_legendre_quadrature
+from .reference_elements import referenceTriangle
 
 # TODO: Maybe a FEFunctionSubSpace with SubMesh with sparse matrix
 #       to keep node numbering identical
