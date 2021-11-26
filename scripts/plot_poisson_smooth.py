@@ -78,9 +78,9 @@ if __name__ == '__main__':
     f = np.vectorize(f_py)
 
 
-    ns = range(4, 100+1, 2)
-    d = 3
-    f_name = 'errs_3_irr.json'
+    ns = range(4, 20+1, 2)
+    d = 1
+    f_name = 'errs_1_new.json'
 
 
     errs = None
@@ -189,7 +189,7 @@ if __name__ == '__main__':
         e_l2 = error(s_np, u, lambda x,y: (np.abs(x-y)**2), grad=False)
         e_h1 = error(g, u, lambda x,y: np.linalg.norm(x-y)**2, grad=True)
         errors_l2.append(e_l2**0.5)
-        errors_h1.append((e_l2+e_h1)**0.5)
+        errors_h1.append(e_h1**0.5)
         print("n = {}, H1_err = {}".format(n, errors_h1[-1]))
 
 

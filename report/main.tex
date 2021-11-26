@@ -6,6 +6,10 @@
 
 \usepackage{csquotes}
 \usepackage{graphicx}
+\graphicspath{ {./figs} }
+
+\usepackage{caption}
+\usepackage{subcaption}
 
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -121,8 +125,6 @@ exist if $f$ is at least continuous and restrictive assumptions regarding $\Omeg
 Thus, a less restrictive formulation of the Problem \ref{eq:poisson} based on
 the variational formulation will be derived.\\
 
-Assuming $u \in C^2(\Omega) \cap C^1(\bar{\Omega})$ is a classical solution to
-\ref{eq:poisson}. This implies $u \in H^1_0(\Omega)$.
 Multiplying \ref{eq:poisson} with test functions $v \in C^\infty_0(\Omega)$ and
 integrating over $\Omega$ yields:
 
@@ -147,15 +149,20 @@ So \ref{eq:poisson_var_greens} can be further simplified to:
   H^1_0(\Omega)}_{\eqqcolon b(v) = \langle b, v \rangle_{H^{-1}_0, H^1_0}}
 \end{equation}
 A function $u \in H^1_0(\Omega)$ satisfying \ref{eq:poisson_weak} is called
-weak solution of \ref{eq:poisson}.\\
+weak solution of \ref{eq:poisson}.
+Assuming $u \in C^2(\Omega) \cap C^1(\bar{\Omega})$ is a classical solution to
+\ref{eq:poisson}. This implies $u \in H^1_0(\Omega)$ and thus any classical
+solution would also satisfy the weak formulation.\\
 Existence and uniqueness of a solution to \ref{eq:poisson_weak} is given by
 reformulating \ref{eq:poisson_weak} to $a(u,v) = \langle b,v \rangle_{H^{-1}_0, H^1_0}$
 and application of Lax-Milgram. The proof is omitted here.
 
+
 \subsection*{Boundary Conditions}
-It remains to investigate under which conditions the continuous problem can be
-extended by Dirichlet and Neumann boundary conditions, and still admit a unique
-solution. First, considering Dirichlet boundary conditions, the problem is given by:
+It shall be briefly investigated how boundary conditions can be incorporated.
+For this, Dirichlet and mixed Dirichlet + Neumann boundary conditions will be
+considered.\\
+First, considering Dirichlet boundary conditions, the problem is given by:
 \begin{equation} \label{eq:poisson_dirichlet}
   \begin{split}
     -\Delta u &= f  \text{ in } \Omega\\
@@ -163,18 +170,21 @@ solution. First, considering Dirichlet boundary conditions, the problem is given
   \end{split}
 \end{equation}
 with $f \in L^2(\Omega)$ and $g \in L^2(\partial\Omega)$.\\
-Additionally, define the sets spaces:
+Additionally, define the sets:
 \begin{equation*}
   \begin{split}
-    H^1_0 &= \left\{ v \in H^1(\Omega)\, :\, v\vert_{\partial\Omega} = 0 \text{ a.e. on } \partial\Omega\right\}\\
-    H^1_g &= \left\{ v \in H^1(\Omega)\, :\, v\vert_{\partial\Omega} = g \text{ a.e. on } \partial\Omega\right\}
+    V_0 &\coloneqq H^1_0(\Omega) = \left\{ v \in H^1(\Omega)\, :\, v\vert_{\partial\Omega} = 0 \text{ a.e. on } \partial\Omega\right\}\\
+    V_g &= \left\{ v \in H^1(\Omega)\, :\, v\vert_{\partial\Omega} = g \text{ a.e. on } \partial\Omega\right\}
   \end{split}
 \end{equation*}
 Which are well-defined for all $g \in L^2(\partial\Omega)$ by the trace
-theorem. $H^1_0$ is indeed a Hilbert space, whereas $H^1_g$ is not since it is
+theorem. $V_0$ is indeed a Hilbert space, whereas $V_g$ is not since it is
 not closed under addition.
 
-Define the bilinear form $a$ and linear functional $b$ as before:
+By using test functions from $H^1_0(\Omega)$, the weak formulation stays the
+same as in \ref{eq:poisson_weak} however, with solutions $u$ sought in $V_g$.
+To obtain such a solution: Define the bilinear form $a$ and linear
+functional $b$ as before:
 \begin{equation*}
   \begin{split}
     a(u,v) &= \int_\Omega \nabla u \cdot \nabla v \,dx\\
@@ -182,14 +192,14 @@ Define the bilinear form $a$ and linear functional $b$ as before:
   \end{split}
 \end{equation*}
 
-Now choose an arbitrary $\hat{g}\in H^1_g$ and solve:
+Now choose an arbitrary $\hat{g}\in V_g$ and solve:
 \begin{equation*}
-  a(\hat{u},v) = b(v) - a(\hat{g},v) \quad \forall v \in H^1_0
+  a(\hat{u},v) = b(v) - a(\hat{g},v) \quad \forall v \in V_0 = H^1_0(\Omega)
 \end{equation*}
 Where the existence of a unique solution $\hat{u}$ is guaranteed by Lax-Milgram.
 
 The weak solution to \ref{eq:poisson_dirichlet} is obtained by:
-$$u = \hat{u} + \hat{g} \in H^1_g$$
+$$u = \hat{u} + \hat{g} \in V_g$$
 
 \subsubsection*{Neumann Boundary Conditions}
 To incorporate Neumann boundary conditions the boundary $\partial\Omega$ needs
@@ -218,6 +228,266 @@ In the case of pure Neumann conditions Lax-Milgram cannot be applied, since the
 bilinear form is no longer coercive. To extend this to the case of $u = g$ on
 $\Gamma_0$ for some $g \in L^2(\Gamma_0)$ the same idea used for pure Dirichlet
 boundary conditions can be used.
+
+\subsection*{Discretizing the Problem}
+To obtain numerical solutions to \ref{eq:poisson_weak}, the problem has to be
+discretized. As by the lecture, the Hilbert space $H^1(\Omega)$ can be
+successively approximated by some sequence of finite dimensional subspaces
+$(V_i)_{i\in \mathbb{N}}$.\\
+For now, the $V_i$ will be the space of piecewise linear, continuous
+polynomials defined a set of nodes obtain by a triangulation of $\Omega$.
+Under the assumption that the triangulation is conforming and no triangles
+collapse, it has been shown in the lecture that $\lim\limits_{i\to\infty}V_i \to
+H^1(\Omega)$.
+
+By forcing all basis functions to attain a certain value on the boundary, an
+approximation to the set $V_g$ can be obtained. By forcing them to 0 on the
+boundary, the space $H^1_0(\Omega)$ can be obtained and
+$\lim\limits_{i\to\infty}V_i \to H^1_0(\Omega)$
+
+Thus, the continuous problem $a(u,v) = b(v) \quad \forall v \in H^1_0(\Omega)$
+can be approximated by a finite dimensional one $a(u_i,v_i) = b(v_i)$ for all
+basis vectors $v_i$ of $V_i$ (and explicitly enforcing the 0 boundary condition).
+Resulting in a linear system where the properties of the system heavily depend
+on the choice of basis of $V_i$.
+
+In this work, isoparametric Lagrange elements are chosen as a basis function,
+which results in a sparse system.
+
+\section*{Numerical Validation with $1^{\text{st}}$ Order Piecewise Polynomials}
+Different convergence rate, shown in the lecture are given by:
+\begin{equation}
+  \begin{split}
+    \left|u-u_h\right|_{H^1(\Omega)} &\lesssim h \lVert u\rVert^2_{H^2(\Omega)}\\
+    \lVert u - u_h \rVert_{L^2(\Omega)} &\lesssim h\lVert u\rVert^2_{H^1(\Omega)}\\
+    \lVert u - u_h \rVert_{L^2(\Omega)} &\lesssim h^2\lVert u\rVert^2_{H^2(\Omega)}
+  \end{split}
+\end{equation}
+Where $h$ is depended on the grid and $u$ is the analytical solution to $a(u,v) = b(v)$.
+$u_h$ is the solution to the discretized problem.
+
+\subsection*{Homogeneous Dirichlet Boundary Conditions}
+Considering the following problem:
+\begin{equation}
+  \begin{split}
+    \Omega &= \left[0,1\right]^2\\
+    -\Delta u &= f\\
+    u &= 0 \quad \text{on } \partial \Omega\\
+  \end{split}
+\end{equation}
+
+With given solution
+$$ u(x,y) = 2^{4a} x^a (1-x)^a y^a (1-y)^a \quad a \in \mathbb{N} $$
+Which satisfies $u \in H^2(\Omega)\,\forall a > 0$
+and $\lVert u \rVert_{H^2(\Omega)} \sim a$.
+Which make it ideal to verify the above convergence rates.
+
+How $u$ behaves with varying parameter $a$ can be seen in \ref{fig:smooth_dirichlet_solution}.
+We expect a convergence rate of the order $C\cdot\frac{1}{n}$ for the $H^1$ semi-norm
+and $C\cdot\frac{1}{n^2}$ for the $L^2$ norm.
+Since $u \in H^2(\Omega) \quad \forall a > 0$ it is expected for C to increase
+with $a$ in both cases.
+By fitting a linear polynomial to the data points on the log-log plot, it is obtained that the
+convergence rate is indeed linear for the $H^1$ semi-norm and quadratic for the $L^2$ norm.
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{.5\textwidth}
+    \centering
+    \includegraphics[width=.6\linewidth]{contour_1}
+    \caption{$a = 1$}
+  \end{subfigure}%
+  \begin{subfigure}{.5\textwidth}
+    \centering
+    \includegraphics[width=.6\linewidth]{contour_10}
+    \caption{$a = 10$}
+  \end{subfigure}
+  \caption{Solution $u$ with varying parameter $a$}
+  \label{fig:smooth_dirichlet_solution}
+\end{figure}
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{.2\textwidth}
+    \centering
+    \includegraphics[width=1\linewidth]{structured_grids}
+    \caption{Grids for $n=4$ and $n=6$}
+  \end{subfigure}%
+  \begin{subfigure}{.8\textwidth}
+    \centering
+    \includegraphics[width=.9\linewidth]{errors_smooth_regular}
+    \caption{Error in $H^1$ Semi-Norm with Increasing $H^2$ Norm of $u$}
+  \end{subfigure}
+  \label{fig:smooth_dirichlet_h1_err}
+  \caption{Smooth Solution with Dirichlet Boundary Conditions on a Structured Grid}
+\end{figure}
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{.2\textwidth}
+    \centering
+    \includegraphics[width=1\linewidth]{unstructured_grids}
+    \caption{Grids for $n=4$ and $n=6$}
+  \end{subfigure}%
+  \begin{subfigure}{.8\textwidth}
+    \centering
+    \includegraphics[width=.9\linewidth]{errors_smooth_unstructured}
+    \caption{Error in $H^1$ Semi-Norm with Increasing $H^2$ Norm of $u$}
+  \end{subfigure}
+  \label{fig:smooth_dirichlet_h1_err}
+  \caption{Smooth Solution with Dirichlet Boundary Conditions on an Unstructured Grid}
+\end{figure}
+
+
+\subsection*{Neumann Boundary Conditions}
+Considering the following problem with mixed Dirichlet and Neumann boundary conditions.
+\begin{equation}
+  \begin{split}
+    \Omega &= \left[-1,1\right]^2\\
+    -\Delta u &= \begin{cases}
+      \frac{\pi^2}{4} \operatorname{cos}\left(\frac{\pi}{2} \cdot y\right) \quad &x \le 0\\
+      \frac{\pi^2}{4} \operatorname{cos}\left(\frac{\pi}{2} \cdot y\right) - a\left(a-1\right)x^{a-2} \quad &x > 0
+    \end{cases}\\
+    u(x,y) &= 0 \quad \text{on } [-1,0] \times -1\\
+    u(x,y) &= x^a \quad \text{on } (0,1] \times -1\\
+    u(x,y) &= 0 \quad \text{on } [-1,0] \times 1\\
+    u(x,y) &= x^a \quad \text{on } (0,1] \times 1\\
+    \frac{\partial u}{\partial {\bf n}} &= 0 \quad \text{on } -1 \times (-1,1)\\
+    \frac{\partial u}{\partial {\bf n}} &= a \quad \text{on } 1 \times (-1,1)
+  \end{split}
+\end{equation}
+With known solution:
+\begin{equation*}
+  u(x,y) = \begin{cases}
+    \operatorname{cos}\left(\frac{\pi}{2} \cdot y\right) \quad &x \le 0\\
+    \operatorname{cos}\left(\frac{\pi}{2} \cdot y\right) + x^a \quad &x > 0
+  \end{cases}
+\end{equation*}
+
+Where $u \in H^{a+0.5 - \epsilon}(\Omega) \quad \forall \epsilon > 0$. With increasing $a$,
+the function $\Delta u$ will develop a singularity along the $x = 0$ line. For the previous convergence
+results to be meaningful we need $a > 1$, so $u$ is continuous and the interpolation operator
+well-defined.\\
+The regularity of the Dirichlet boundary is also controlled by $a$. For a solution to be found,
+only square integrability on the boundary is needed. Therefore, the solution is not affected by this.
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{.5\textwidth}
+    \centering
+    \includegraphics[width=.6\linewidth]{contour_nonsmooth_1}
+    \caption{$a = 1.1$}
+  \end{subfigure}%
+  \begin{subfigure}{.5\textwidth}
+    \centering
+    \includegraphics[width=.6\linewidth]{contour_nonsmooth_2}
+    \caption{$a = 2$}
+  \end{subfigure}
+  \caption{Solution $u$ with varying parameter $a$}
+  \label{fig:non_smooth_mixed_solution}
+\end{figure}
+
+For $1 < a \le 1.5$ we have $u \notin H^2(\Omega)$ and therefore no convergence estimate at hand.
+For $1.5 < a$ linear convergence in the $H^1$ semi-norm is expected.
+For convergence in the $L^2$ norm the theorem guaranteeing a convergence estimates
+in its precise form states:
+\begin{equation}
+  \begin{split}
+    &\exists n \in \mathbb{N}: \, \lVert u - u_h \rVert_{L^2} \in \mathcal{O}\left(h\right), \quad \forall h < \frac{1}{n}, u \in H^1(\Omega) \\
+    &\exists n \in \mathbb{N}: \, \lVert u - u_h \rVert_{L^2} \in \mathcal{O}\left(h^2\right), \quad \forall h < \frac{1}{n}, u \in H^2(\Omega) \\
+  \end{split}
+\end{equation}
+This threshold is likely to increase with less regularity of the solution. So a more natural
+expectation is for the convergence rate to increase with increasing $a$.
+Both of this is observed in the numerical experiment. As visualized in \ref{fig:err_nonsmooth_h1},
+the convergence rate for the $H^1$ semi-norm is exactly linear for $1.5 < a$.
+For $a = 1.3$ the method is still guaranteed to converge, although no convergence estimate can be established.
+From the numerical experiment it appears to converge at a rate $\mathcal{O}\left(h^{0.6}\right)$.
+
+In \ref{fig:err_nonsmooth_l2} it can be seen how the convergence rate depends on the regularity of the solution.
+Although, for $1.5 < a$ quadratic convergence is eventually guaranteed, $n = 100$ is definitely too small.
+Truly quadratic convergence can only be observed for $2.2 < a$
+\begin{figure}
+  \centering
+  \begin{subfigure}{1\textwidth}
+    \centering
+    \includegraphics[width=.8\linewidth]{errors_nonsmooth_h1}
+    \caption{Convergence in the $H^1$ Semi-Norm}
+    \label{fig:err_nonsmooth_h1}
+  \end{subfigure}
+
+  \begin{subfigure}{1\textwidth}
+    \centering
+    \includegraphics[width=.8\linewidth]{errors_nonsmooth_l2}
+    \caption{Convergence in the $L^2$ Norm}
+    \label{fig:err_nonsmooth_l2}
+  \end{subfigure}
+  \caption{Convergence With Varying Regularity of the Solution}
+\end{figure}
+
+
+\subsection*{Higher Order Elements}
+To increase the accuracy of the solution on a coarser mesh, a polynomial basis
+of higher order can be chosen. This can be achieved by considering higher order local
+basis functions defined on the reference element. The local basis functions on the reference
+element in 1 and 2 dimension are visualized for 1, 2 and 3 order polynomials in \ref{fig:basis_1d}
+and \ref{fig:basis_2d}.
+The 3 order Polynomial basis functions for 2 spatial dimensions are omitted, due to the
+large amount of basis functions.
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{1.\textwidth}
+    \centering
+    \includegraphics[width=.8\linewidth]{p1_mesh_basis}
+    \caption{Polynomial of degree 1 on the unit interval}
+  \end{subfigure}
+  \begin{subfigure}{1.\textwidth}
+    \centering
+    \includegraphics[width=.8\linewidth]{p2_mesh_basis}
+    \caption{Polynomial of degree 2 on the unit interval}
+  \end{subfigure}
+  \begin{subfigure}{1.\textwidth}
+    \centering
+    \includegraphics[width=.8\linewidth]{p3_mesh_basis}
+    \caption{Polynomial of degree 3 on the unit interval}
+  \end{subfigure}
+  \caption{Polynomial basis on the 1d reference element}
+  \label{fig:basis_1d}
+\end{figure}
+
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{1.\textwidth}
+    \centering
+    \includegraphics[width=.8\linewidth]{p1_2d_mesh_basis}
+    \caption{Polynomial of degree 1 on the 2-unit-simplex}
+  \end{subfigure}
+  \begin{subfigure}{1.\textwidth}
+    \centering
+    \includegraphics[width=.8\linewidth]{p2_2d_mesh_basis}
+    \caption{Polynomial of degree 2 on the 2-unit-simplex}
+  \end{subfigure}
+  \caption{Polynomial basis on the 2d reference element}
+  \label{fig:basis_2d}
+\end{figure}
+
+
+The following estimate for the convergence rates of $k^{\text{th}}$ order
+elements has been established during the lecture:
+\begin{equation}
+  \lVert u - u_h \rVert_L^2 \lesssim h^{k'} \lVert u \rVert_{H^{k'+1}}
+\end{equation}
+Where $k' = \operatorname{min}\left(k,m\right)$ and $m$ is the largest integer s.t. $u \in H^{m+1}$.
+
+By using Problem \ref{eq:} again, the parameter $a$ can be adjusted easily to
+verify the above convergence rate for higher order elements.
+
+
+
+
+
 
 
 \subsection*{Discretization}
@@ -265,6 +535,40 @@ dimensional subspaces will indeed converge to a solution in the infinite
 dimensional space $V$. This will be done later, when convergence rates are
 investigated. For now, assume that it indeed converges under reasonable
 assumptions.
+
+To obtain a sparse matrix $A$ and a fairly simple projection/interpolation
+operator, isoparametric Lagrange elements on simplices are chosen. For now,
+only linear finite elements will be considered. In section {\bf TODO} this will
+be extended to arbitrary order polynomials.
+
+As introduced in the lecture, a finite dimensional subspace $V_n \subset V$ is
+obtained by approximating the underlying domain $\Omega$ by a conforming
+subdivision into simplexes (mesh). Then local basis functions defined on a
+reference simplex are mapped to global elements on the mesh.
+
+
+\subsubsection{Reference Elements}
+In $d$ spatial dimensions, the reference simplex is defined as:
+$$T \coloneqq \left\{x \in \left[ 0,1 \right] ^d \, : \, \sum^d_{i=1} x_i \le 1\right\}$$
+The space of $1^{\text{st}}$ order polynomials on $T$ has dimension $d+1$.
+Thus, $d+1$ distinct points are needed to define a $1^{\text{st}}$ degree
+polynomial space on $T$. Choosing the vertices of the simplex $T$ suffices in
+this case and the local space can be defined as follows:
+$$
+\left\{ \phi_i: T \to \mathbb{R} \in \mathbb{P}_1 \, : \, \phi_i(x_j) = \delta_{ij},\quad 1 \le i,j \le d+1\right\}
+$$
+where the $x_j$ are the $d+1$ distinct vertices of the simplex. Fo $1$ and $2$
+spatial dimensions, these spaces are visualized in fig {\bf TODO}.
+
+\subsubsection*{Mapping to Global Elements in the Mesh}
+For each simplex on the mesh, define $\Psi_k: T \to T_k$ where $T$ is the
+reference simplex and $T_k$ is the $k^\text{th}$ simplex on the mesh.
+$\Psi_k$ is fully determined by $\Psi_k(x_j)$ for all vertices of the simplex.
+
+In the following, let $\Omega$ be a Lipschitz domain where its boundary
+$\Gamma$ is approximated polygonally.
+
+
 
 
 
