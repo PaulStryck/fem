@@ -266,9 +266,10 @@ Different convergence rate, shown in the lecture are given by:
 Where $h$ is depended on the grid and $u$ is the analytical solution to $a(u,v) = b(v)$.
 $u_h$ is the solution to the discretized problem.
 
-\subsection*{Homogeneous Dirichlet Boundary Conditions}
+\subsection*{Smooth Solutions $u \in H^2$}
 Considering the following problem:
 \begin{equation}
+  \label{eq:smooth_poisson_prob}
   \begin{split}
     \Omega &= \left[0,1\right]^2\\
     -\Delta u &= f\\
@@ -278,17 +279,18 @@ Considering the following problem:
 
 With given solution
 $$ u(x,y) = 2^{4a} x^a (1-x)^a y^a (1-y)^a \quad a \in \mathbb{N} $$
+and $f$ accordingly.
 Which satisfies $u \in H^2(\Omega)\,\forall a > 0$
 and $\lVert u \rVert_{H^2(\Omega)} \sim a$.
 Which make it ideal to verify the above convergence rates.
 
-How $u$ behaves with varying parameter $a$ can be seen in \ref{fig:smooth_dirichlet_solution}.
+As seen in \ref{fig:smooth_dirichlet_solution}, $u$ is a smooth bump function where the steepness
+increases with $a$.
 We expect a convergence rate of the order $C\cdot\frac{1}{n}$ for the $H^1$ semi-norm
-and $C\cdot\frac{1}{n^2}$ for the $L^2$ norm.
-Since $u \in H^2(\Omega) \quad \forall a > 0$ it is expected for C to increase
-with $a$ in both cases.
-By fitting a linear polynomial to the data points on the log-log plot, it is obtained that the
-convergence rate is indeed linear for the $H^1$ semi-norm and quadratic for the $L^2$ norm.
+and $C\cdot\frac{1}{n^2}$ for the $L^2$ norm since $u \in H^2(\Omega) \forall a > 0$.
+C is expected to increase with $a$ as it should stand in some relation to $\lVert u \rVert_{H^2}$.
+For both, structured \ref{fig:smooth_dirichlet_str_errs} and unstructured \ref{fig:smooth_dirichlet_unstr_errs}
+grids exactly this is obtained.
 
 \begin{figure}
   \centering
@@ -315,10 +317,10 @@ convergence rate is indeed linear for the $H^1$ semi-norm and quadratic for the 
   \end{subfigure}%
   \begin{subfigure}{.8\textwidth}
     \centering
-    \includegraphics[width=.9\linewidth]{errors_smooth_regular}
-    \caption{Error in $H^1$ Semi-Norm with Increasing $H^2$ Norm of $u$}
+    \includegraphics[width=.9\linewidth]{errors_smooth_reg}
+    \caption{Error in $L^2$ and $H^1$ Semi-Norm with Gradually Refined Grids and Different $H^2$ Norms of $u$}
   \end{subfigure}
-  \label{fig:smooth_dirichlet_h1_err}
+  \label{fig:smooth_dirichlet_str_errs}
   \caption{Smooth Solution with Dirichlet Boundary Conditions on a Structured Grid}
 \end{figure}
 
@@ -331,27 +333,26 @@ convergence rate is indeed linear for the $H^1$ semi-norm and quadratic for the 
   \end{subfigure}%
   \begin{subfigure}{.8\textwidth}
     \centering
-    \includegraphics[width=.9\linewidth]{errors_smooth_unstructured}
+    \includegraphics[width=.9\linewidth]{errors_smooth_irreg}
     \caption{Error in $H^1$ Semi-Norm with Increasing $H^2$ Norm of $u$}
   \end{subfigure}
-  \label{fig:smooth_dirichlet_h1_err}
+  \label{fig:smooth_dirichlet_unstr_errs}
   \caption{Smooth Solution with Dirichlet Boundary Conditions on an Unstructured Grid}
 \end{figure}
 
 
-\subsection*{Neumann Boundary Conditions}
+\subsection*{Less Regular Forces}
 Considering the following problem with mixed Dirichlet and Neumann boundary conditions.
 \begin{equation}
+  \label{eq:poisson_less_smooth_prob}
   \begin{split}
     \Omega &= \left[-1,1\right]^2\\
     -\Delta u &= \begin{cases}
       \frac{\pi^2}{4} \operatorname{cos}\left(\frac{\pi}{2} \cdot y\right) \quad &x \le 0\\
       \frac{\pi^2}{4} \operatorname{cos}\left(\frac{\pi}{2} \cdot y\right) - a\left(a-1\right)x^{a-2} \quad &x > 0
     \end{cases}\\
-    u(x,y) &= 0 \quad \text{on } [-1,0] \times -1\\
-    u(x,y) &= x^a \quad \text{on } (0,1] \times -1\\
-    u(x,y) &= 0 \quad \text{on } [-1,0] \times 1\\
-    u(x,y) &= x^a \quad \text{on } (0,1] \times 1\\
+    u(x,y) &= 0 \quad \text{on } [-1,0] \times -1 \cup [-1,0] \times 1\\
+    u(x,y) &= x^a \quad \text{on } (0,1] \times -1 \cup (0,1] \times 1\\
     \frac{\partial u}{\partial {\bf n}} &= 0 \quad \text{on } -1 \times (-1,1)\\
     \frac{\partial u}{\partial {\bf n}} &= a \quad \text{on } 1 \times (-1,1)
   \end{split}
@@ -368,8 +369,8 @@ Where $u \in H^{a+0.5 - \epsilon}(\Omega) \quad \forall \epsilon > 0$. With incr
 the function $\Delta u$ will develop a singularity along the $x = 0$ line. For the previous convergence
 results to be meaningful we need $a > 1$, so $u$ is continuous and the interpolation operator
 well-defined.\\
-The regularity of the Dirichlet boundary is also controlled by $a$. For a solution to be found,
-only square integrability on the boundary is needed. Therefore, the solution is not affected by this.
+The varying regularity of the boundary conditions does not pose a problem, since only boundedness
+for the Neumann boundary and square integrability for the Dirichlet boundary is needed.
 
 \begin{figure}
   \centering
@@ -387,10 +388,10 @@ only square integrability on the boundary is needed. Therefore, the solution is 
   \label{fig:non_smooth_mixed_solution}
 \end{figure}
 
-For $1 < a \le 1.5$ we have $u \notin H^2(\Omega)$ and therefore no convergence estimate at hand.
 For $1.5 < a$ linear convergence in the $H^1$ semi-norm is expected.
-For convergence in the $L^2$ norm the theorem guaranteeing a convergence estimates
-in its precise form states:
+For $1 < a \le 1.5$ we have $u \notin H^2(\Omega)$ and linear convergence in the $L^2$ norm at best.
+And for $1.5 < a$ quadratic convergence in the $L^2$ norm at best.
+However, the theorem guaranteeing a convergence estimates in its precise form states:
 \begin{equation}
   \begin{split}
     &\exists n \in \mathbb{N}: \, \lVert u - u_h \rVert_{L^2} \in \mathcal{O}\left(h\right), \quad \forall h < \frac{1}{n}, u \in H^1(\Omega) \\
@@ -399,13 +400,16 @@ in its precise form states:
 \end{equation}
 This threshold is likely to increase with less regularity of the solution. So a more natural
 expectation is for the convergence rate to increase with increasing $a$.
+
 Both of this is observed in the numerical experiment. As visualized in \ref{fig:err_nonsmooth_h1},
 the convergence rate for the $H^1$ semi-norm is exactly linear for $1.5 < a$.
-For $a = 1.3$ the method is still guaranteed to converge, although no convergence estimate can be established.
+For $a = 1.3$ the method is still guaranteed to converge in the $H^1$ semi-norm, although no convergence estimate can be established.
 From the numerical experiment it appears to converge at a rate $\mathcal{O}\left(h^{0.6}\right)$.
 
 In \ref{fig:err_nonsmooth_l2} it can be seen how the convergence rate depends on the regularity of the solution.
-Although, for $1.5 < a$ quadratic convergence is eventually guaranteed, $n = 100$ is definitely too small.
+For the highly irregular solution with $a = 1.3$, linear convergence is only given during the first steps.
+A similar behaviour is observed for $1.5 < a < 2.2$ where quadratic convergence is expected, but only given
+during the first steps.
 Truly quadratic convergence can only be observed for $2.2 < a$
 \begin{figure}
   \centering
@@ -432,8 +436,8 @@ of higher order can be chosen. This can be achieved by considering higher order 
 basis functions defined on the reference element. The local basis functions on the reference
 element in 1 and 2 dimension are visualized for 1, 2 and 3 order polynomials in \ref{fig:basis_1d}
 and \ref{fig:basis_2d}.
-The 3 order Polynomial basis functions for 2 spatial dimensions are omitted, due to the
-large amount of basis functions.
+
+Higher order polynomial basis functions are omitted as the number of basis functions increases quite fast.
 
 \begin{figure}
   \centering
@@ -474,6 +478,9 @@ large amount of basis functions.
 \end{figure}
 
 
+To compare how higher order elements perform compared to their linear counterparts,
+the same numerical experiments as above will be repeated with higher order elements.
+
 The following estimate for the convergence rates of $k^{\text{th}}$ order
 elements has been established during the lecture:
 \begin{equation}
@@ -481,196 +488,27 @@ elements has been established during the lecture:
 \end{equation}
 Where $k' = \operatorname{min}\left(k,m\right)$ and $m$ is the largest integer s.t. $u \in H^{m+1}$.
 
-By using Problem \ref{eq:} again, the parameter $a$ can be adjusted easily to
-verify the above convergence rate for higher order elements.
+By using Problem \ref{eq:smooth_poisson_prob} and \ref{eq:poisson_less_smooth_prob}
+again, the parameter $a$ can be adjusted easily to verify the above convergence
+rate for higher order elements.
+
+
+Using the problem \ref{eq:smooth_poisson_prob} with $a = 5$ we have $u \in H^k(\Omega) \forall k \in \mathbb{N}$.
+Thus, a convergence rate of $ \sim h^{d+1}$ for a polynomial basis of arbitrary degree $d$ in the $L^2$ norm is expected.
+
+This is verified on a regular grid in \ref{fig:errors_smooth_highorder}.
+It can be seen, that basis functions of degree $8$ and $10$ do converge very fast.
+However, they stop increasing in accuracy after just a few refinement steps which is probably due to other numerical errors
+associated with bad conditioning of the Vandermonde matrix and its inverse used to evaluate the basis functions.
+\begin{figure}
+  \centering
+  \includegraphics[width=.8\linewidth]{errors_smooth_highorder_l2}
+  \caption{$L^2$ Error for Smooth Solution with Different Degree Polynomials}
+  \label{fig:errors_smooth_highorder}
+\end{figure}
 
 
 
-
-
-
-
-\subsection*{Discretization}
-The goal of the Finite Element Method is to approximate used Hilbert spaces by
-finite dimensional subspaces. We will see that an approximation of $H^1(\Omega)$
-suffices for the previously stated Poisson equation with Dirichlet or mixed
-boundary conditions. For now, assume the problem in its general form:\\
-
-Find $u \in V$ such that:
-\begin{equation}
-  a(u,v) = l(v), \quad \forall v \in V
-\end{equation}
-
-Given some Hilbert space $\left(V, \lVert \cdot \rVert_V\right)$, a functional
-$l\in V'$ in the dual space of $V$ and a bilinear form $a: V \times V
-\rightarrow \mathbb{R}$ which satisfies for all $u,v\in V$:
-\begin{enumerate}
-  \item $|a(u,v)| \leq M \lVert u \rVert_V \cdot \lVert v \rVert_V, \quad M > 0$
-  \item $a(u,u) \geq \gamma \lVert u \rVert_V, \quad \gamma > 0$
-\end{enumerate}
-
-
-To construct a finite dimensional approximation of the above Hilbert space $V$
-a sequence of subspaces $(V_n)_{n\in\mathbb{N}} \subset V$ can be constructed with:
-$V_n = span(\Phi_1,\dotsb, \Phi_n)$ with some basis functions $\Phi_i$ and the
-desired property $\lim\limits_{n\to \infty} V_n = V$.
-The Lax-Milgram lemma now guarantees existence and uniqueness of a solution in
-the finite dimensional subspace:
-\begin{equation}
-  a(u_n, v_n) = l(v_n), \quad \forall v_n \in V_n
-\end{equation}
-
-Or equivalently:
-\begin{equation}
-  a(u_n, \Phi_i) = l(\Phi_i), \quad \forall 1 \le i \le n
-\end{equation}
-where $u_n = \sum^n_1 \hat{u}_i\Phi_i$. This can be restated in terms of a
-linear system:
-$$Ax=b$$
-where $A_{i,j} = a(\Phi_i, \Phi_j) \in \mathbb{R}^{n\times n}$,
-$x = \left(\hat{u}_1, \dotsb, \hat{u}_n\right) \in \mathbb{R}^n$ and
-$b = (l(\Phi_i), \dotsb, l(\Phi_n)) \in \mathbb{R}^n$.\\
-At this point it has not been shown that solutions in the sequence of finite
-dimensional subspaces will indeed converge to a solution in the infinite
-dimensional space $V$. This will be done later, when convergence rates are
-investigated. For now, assume that it indeed converges under reasonable
-assumptions.
-
-To obtain a sparse matrix $A$ and a fairly simple projection/interpolation
-operator, isoparametric Lagrange elements on simplices are chosen. For now,
-only linear finite elements will be considered. In section {\bf TODO} this will
-be extended to arbitrary order polynomials.
-
-As introduced in the lecture, a finite dimensional subspace $V_n \subset V$ is
-obtained by approximating the underlying domain $\Omega$ by a conforming
-subdivision into simplexes (mesh). Then local basis functions defined on a
-reference simplex are mapped to global elements on the mesh.
-
-
-\subsubsection{Reference Elements}
-In $d$ spatial dimensions, the reference simplex is defined as:
-$$T \coloneqq \left\{x \in \left[ 0,1 \right] ^d \, : \, \sum^d_{i=1} x_i \le 1\right\}$$
-The space of $1^{\text{st}}$ order polynomials on $T$ has dimension $d+1$.
-Thus, $d+1$ distinct points are needed to define a $1^{\text{st}}$ degree
-polynomial space on $T$. Choosing the vertices of the simplex $T$ suffices in
-this case and the local space can be defined as follows:
-$$
-\left\{ \phi_i: T \to \mathbb{R} \in \mathbb{P}_1 \, : \, \phi_i(x_j) = \delta_{ij},\quad 1 \le i,j \le d+1\right\}
-$$
-where the $x_j$ are the $d+1$ distinct vertices of the simplex. Fo $1$ and $2$
-spatial dimensions, these spaces are visualized in fig {\bf TODO}.
-
-\subsubsection*{Mapping to Global Elements in the Mesh}
-For each simplex on the mesh, define $\Psi_k: T \to T_k$ where $T$ is the
-reference simplex and $T_k$ is the $k^\text{th}$ simplex on the mesh.
-$\Psi_k$ is fully determined by $\Psi_k(x_j)$ for all vertices of the simplex.
-
-In the following, let $\Omega$ be a Lipschitz domain where its boundary
-$\Gamma$ is approximated polygonally.
-
-
-
-
-
-
-\begin{multicols}{2}
-
-  \subsection*{Theory}
-    The PDE in consideration is the stereotypical Poisson equation:
-    \begin{equation}
-      % \label{eq:poisson}
-      - \nabla \cdot \left( \nabla u \right) = f \quad \text{on} \Omega
-    \end{equation}
-
-    Where solutions will be sought on the unit square $\Omega = \left[0,1\right]^2$.
-
-    In this strong from \ref{eq:poisson} requires strong assumptions on $f$ and $\Omega$.
-    In order to obtain a meaningful numerical method, these assumptions must be relaxed.
-    This is done by multiplying both sides of the equation by test functions and integrating over the domain $\Omega$.
-    For simplicity, assume $f = 0$ for now:
-    \begin{equation}
-      \label{eq:poisson_weak}
-      - \int_\Omega \nabla \cdot \left(\nabla u\right) v \,dx = \int_\Omega fv \,dx
-        \quad \forall v \in \mathcal{C}^\infty_0(\Omega)
-    \end{equation}
-
-    By applying Green's formula, it is obtained:
-    \begin{equation}
-      \int_\Omega \nabla u \cdot \nabla v \,dx - \int_\Gamma v \frac{\partial y}{\partial \nu} \,dS = \int_\Omega fv \,dx
-        \quad \forall v \in \mathcal{C}^\infty_0(\Omega)
-    \end{equation}
-
-    Which can be further simplified, because $v = 0$ on $\Gamma$.
-    Resulting in weak formulation of the Poisson problem with homogeneous Dirichlet boundary condition:
-    \begin{equation}
-      \underbrace{\int_\Omega \nabla u \cdot \nabla v \,dx}_{\coloneqq a(u,v)} = \underbrace{\int_\Omega fv \,dx}_{\coloneqq l(f)}
-        \quad \forall v \in \mathcal{C}^\infty_0(\Omega)
-    \end{equation}
-
-    Where $\mathcal{C}^\infty_0(\Omega)$ is the space of smooth test functions vanishing at the boundary.
-    As mentioned in the lecture, $\mathcal{C}^\infty_0(\Omega)$ is dense in $H^1_0(\Omega)$ w.r.t. the $H^1$ norm.
-    Since both sides of \ref{eq:poisson_weak} are continuous w.r.t. $v$, \ref{eq:poisson_weak} also holds for all $v \in H^1_0(\Omega)$.
-
-    Since, both, the above defined bilinear form $a$ is bounded and coercive, as well as $l \in H^{-1}_0$,
-    Lax-Milgram guarantees existence and uniqueness of a solution.
-
-    Lax-Milgram additionally guarantees that $u$ is the unique minimizer of
-    \begin{equation}
-      \min_{y \in H^1_0} \frac{1}{2}a(y,y) - l(y)
-    \end{equation}
-    This can later be used to implement boundary conditions.
-
-  \subsubsection*{Boundary Conditions}
-    \begin{theorem}
-     The Poisson equation with Dirichlet and Neumann boundary conditions:
-      \begin{align*}
-        -\nabla \cdot \left( \nabla u \right) &= f  \text{ in } \Omega\\
-        u &= g \text{ on } \Gamma_0\\
-        \frac{\partial u}{\partial \nu} &= h \text{ on } \Gamma_1
-      \end{align*}
-      with $f \in L^2(\Omega)$, $g \in L^2(\Gamma_0)$, $h \in L^2(\Gamma_1)$ and $\int_{\Gamma_0}\,dx > 0$.
-      Has a weak solution $u \in H^1(\Omega)$.
-
-      \begin{proof}
-        Obtain the weak formulation as usual:
-        \begin{equation*}
-          \label{eq:poisson_weak_boundaries}
-          \int_\Omega \nabla u \cdot \nabla v \,dx - \int_{\Gamma_0} v \frac{\partial u}{\partial \mu} \,dx =
-            \int_\Omega fv\,dx + \int_{\Gamma_1} vh\,dx
-        \end{equation*}
-
-        Furthermore define the Hilbert spaces:
-        \begin{align*}
-          V_0 &= \left\{ v \in H^1(\Omega)\, :\, v\vert_{\Gamma_0} = 0 \text{ a.e. on } \Gamma_0 \right\}\\
-          V_g &= \left\{ v \in H^1(\Omega)\, :\, v\vert_{\Gamma_0} = g \text{ a.e. on } \Gamma_0 \right\}
-        \end{align*}
-
-        And define the bilinear form $a$ and linear functional $l$ as follows:
-        \begin{align*}
-          a(u,v) &= \int_\Omega \nabla u \cdot \nabla v \,dx\\
-          l(v)   &= \int_{\Gamma_1} hv \,dx + \int_\Omega fv\,dx
-        \end{align*}
-
-        Lax-Milgram guarantees existence of a unique solution to:
-        \begin{equation*}
-          a(u,v) = l(v) \quad \forall v \in V_0
-        \end{equation*}
-        If $\int_{\Gamma_0}dx >0$
-
-        Now choose an arbitrary $\hat{g}\in V_g$ and solve:
-        \begin{equation*}
-          a(\hat{u},v) = l(v) - a(\hat{g},v) \quad \forall v \in V_0
-        \end{equation*}
-
-        The solution to \ref{eq:poisson_weak_boundaries} is obtained by:
-        $$u = \hat{u} + \hat{g} \in V_g$$
-
-      \end{proof}
-
-    \end{theorem}
-
-  \subsection*{Grid Generation}
-
-\end{multicols}
+\subsection*{Numerical Challenges With Higher Order Elements}
 
 \end{document}
