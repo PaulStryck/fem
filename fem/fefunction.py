@@ -54,10 +54,10 @@ class FEFunction():
         return self._fs
 
 
-    def plot_submanifold(self):
+    def _plot_submanifold(self, ax, deg=None, cmapinterval=(0,1)):
         fs = self._fs
 
-        d = 2 * (fs.element.deg + 1)  # Render each element as d cells
+        d = 2 * (fs.element.deg + 1) if deg is None else deg
 
         if fs.element.cell is referenceInterval:
             local_coords = np.expand_dims(np.linspace(0, 1, d), 1)
@@ -100,25 +100,25 @@ class FEFunction():
 
         # color values for each cell
         norm = Normalize()
-        colors = get_cmap('viridis')(norm(values))
+        colors = get_cmap('viridis')(norm(values*(-1)))
 
         if fs.mesh.dim == 2 and fs.mesh.dim_submanifold == 1:
             ax = plt.figure().add_subplot()
             for cell, color in zip(ts, colors):
                 ax.plot(xs[0][cell], xs[1][cell], color=color)
         elif fs.mesh.dim == 3 and fs.mesh.dim_submanifold == 1:
-            ax = plt.figure().add_subplot(projection='3d')
+            # ax = plt.figure().add_subplot(projection='3d')
             for cell, color in zip(ts, colors):
                 ax.plot(xs[0][cell], xs[1][cell], xs[2][cell], color=color)
         elif fs.mesh.dim == 3 and fs.mesh.dim_submanifold == 2:
-            ax = plt.figure().add_subplot(projection='3d')
+            # ax = plt.figure().add_subplot(projection='3d')
             p3dc = ax.plot_trisurf(Triangulation(xs[0], xs[1], ts),
                                    xs[2], color='r', linewidth=0)
 
             # set the face colors of the Poly3DCollection
             p3dc.set_fc(colors)
 
-        plt.show()
+        # plt.show()
 
     def _plot_1d(self, ax, deg=None):
         fs = self._fs
@@ -187,6 +187,9 @@ class FEFunction():
         d = d if deg is None else deg
 
         if fs.element.cell is referenceTriangle:
+            if fs.mesh.dim != fs.mesh.dim_submanifold:
+                return self._plot_submanifold(ax, d, cmapinterval)
+
             return self._plot_2d(ax, d, cmapinterval)
         elif fs.element.cell is referenceInterval:
             return self._plot_1d(ax, d)
