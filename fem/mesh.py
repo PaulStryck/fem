@@ -1,12 +1,11 @@
 from itertools import combinations
-from os import wait
 from typing import Callable, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 from scipy.spatial import Delaunay
 
-from fem.reference_elements import Cell, referenceInterval, referenceTriangle
+from .reference_elements import Cell, referenceInterval, referenceTriangle
 
 
 class MaskedList():
@@ -70,13 +69,36 @@ class SimplexMesh:
         inner = np.random.uniform(low=[0,0], high=[1,1], size=(n**2-4*(n-2)-4,2))
         all_pts = np.vstack([corners, e_0, e_1, e_2, e_3, inner])
 
-        mesh = Delaunay(all_pts)
+        mesh = Delaunay((all_pts))
+
+        return cls(mesh.points, mesh.simplices, referenceTriangle)
+
+    @classmethod
+    def Create_2d_refined(cls, n):
+        n = n if n > 2 else 2
+
+        def square(n):
+            return np.array([[i/n, j/n]
+                             for i in range(n+1)
+                             for j in range(n+1)])
+
+        vs = np.unique(np.concatenate([
+            square(int(n/4)) * np.array([0.3, 1]),
+            square(int(n/4)) * np.array([0.3, 1]) + np.array([0.7, 0]),
+            square(int(n/2)) * np.array([0.4, 1]) + np.array([0.3, 0])
+        ]), axis=0)
+
+
+        mesh = Delaunay((vs*2)-1)
 
         return cls(mesh.points, mesh.simplices, referenceTriangle)
 
 
+
+
+
     @classmethod
-    def Create_2d_unit_square_structured(cls, n):
+    def Create_2d_unit_square_structured(cls, n, scaled=False):
         if n < 2:
             n = 2
 
@@ -98,7 +120,9 @@ class SimplexMesh:
                 faces[ind]   = [i*n + j  , i*n + j + 1  , (i+1)*n + j]
                 faces[ind+1] = [i*n + j+1, (i+1)*n + j+1, (i+1)*n + j]
 
-        return cls(vertices, faces, referenceTriangle)
+        if scaled:
+            return cls((vertices*2)-1, faces, referenceTriangle)
+        return cls((vertices), faces, referenceTriangle)
 
 
     @classmethod
