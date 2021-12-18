@@ -1,6 +1,6 @@
 ### Description
 
-<img align="left" width="200" alt="Solution to a Poisson Equaiton on the unit square" src="report/figs/contour_1.png"/>
+<img align="left" width="150" alt="Solution to a Poisson Equaiton on the unit square" src="report/figs/contour_1.png"/>
 
 Basic FEM implementation to better understand how things work.
 The conceptual design and nameing conventions are loosely based on the
@@ -10,6 +10,9 @@ mathmatical framework of __Finite Element Exterior Calculus__.
 To solve an exemplarotry PDE, run `python -m pdes.poisson` from top level directory.
 
 The scripts in `/scripts/` were used to generate the plots in the report.
+
+
+
 
 
 ### Fundamentals
