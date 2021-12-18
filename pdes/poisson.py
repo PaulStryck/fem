@@ -31,8 +31,9 @@ def poisson(fs: FEFunctionSpace,
     numDataPts = fs.dim
 
     f_int = np.zeros(numDataPts, dtype=np.double)
+    q_dim = min([fs.element.dim*4, fs.element.dim**2])
     quadrature = gauss_legendre_quadrature(fs.element.cell.dim,
-                                           fs.element.dim**2)
+                                           q_dim)
     Phi  = fs.element.phi_eval(quadrature.points)
 
     for e, ind in fs.elements:
