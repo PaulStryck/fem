@@ -36,3 +36,8 @@ u = poisson(fs,
 Where f and s are regular python functions representing the force and boundary function.
 The function `poisson` creates the Laplacian and solves the system, returning an object of type `FEFunction`.
 This could be further manipulated or plotted.
+
+
+### TODO
+- Neumann Boundary conditions don't work on this implementation of the poisson equation for Lagrange elements of order higher than 2.
+- Other Element Types
