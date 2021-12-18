@@ -13,8 +13,9 @@ def error(u, v, f, grad=False):
 
     # Quadrature rule of order 36 where the spation dimension
     # matches the spation dimension of the reference element of the mesh
+    q_dim = min([3, v.fs.element.dim**2])
     quadrature = gauss_legendre_quadrature(v.fs.element.cell.dim,
-                                           3)
+                                           q_dim)
 
     # Evaluate the local basis function at all quadrature points
     if grad:
