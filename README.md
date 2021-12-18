@@ -1,5 +1,7 @@
 ### Description
 
+[Solution to a Poisson Equaiton on the unit square](report/figs/contour_1.png)
+
 Basic FEM implementation to better understand how things work.
 The conceptual design and nameing conventions are loosely based on the
 mathmatical framework of __Finite Element Exterior Calculus__.
