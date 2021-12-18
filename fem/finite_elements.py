@@ -137,6 +137,32 @@ class PElement(FiniteElement):
                                      1: [8,6],
                                      2: [2,1]},
                                  2: {0: [5]}}
+        elif self.cell.dim == 2 and self.deg == 4:
+            self._nodes = self.__lagrange_pts(self.deg)
+            self._local_nodes = {0: {0: [0],
+                                     1: [14],
+                                     2: [4]},
+                                 1: {0: [5,9,12],
+                                     1: [13,11,8],
+                                     2: [3,2,1]},
+                                 2: {0: [6,10,7]}}
+        elif self.cell.dim == 2:
+            p = self.deg
+            self._nodes = self.__lagrange_pts(self.deg)
+            self._local_nodes = {0: {0: [0],
+                                     1: [int(binom(p+d, d)-1)],
+                                     2: [p]},
+                                 1: {0: [sum([p+1-i for i in range(l+1)]) for l in range(p-1)],
+                                     1: list(np.flip([p+sum([p-i for i in range(l+1)]) for l in range(p-1)])),
+                                     2: list(np.arange(p)[:0:-1])},
+                                 2: {0: [7,12,6, 13, 9, 8, 7]}}
+            foo = np.array([False]*int(binom(p+d, d)))
+            for ii in self._local_nodes[0].values():
+                foo[ii] = True
+            for ii in self._local_nodes[1].values():
+                foo[ii] = True
+
+            self._local_nodes[2][0] = list(np.arange(int(binom(p+d,d)))[~foo])
         else:
             raise NotImplementedError()
 
